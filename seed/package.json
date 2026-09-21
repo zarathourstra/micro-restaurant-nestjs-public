@@ -1,0 +1,13 @@
+{
+  "name": "@fr-univ-cotedazur-restaurant/seed",
+  "version": "1.0.0",
+  "description": "Seed of the principal stored models of the restaurant (menu, dining and kitchen databases)",
+  "private": true,
+  "scripts": {
+    "seed": "node seed.js",
+    "seed:reset": "node seed.js --reset"
+  },
+  "dependencies": {
+    "mongodb": "^6.20.0"
+  }
+}

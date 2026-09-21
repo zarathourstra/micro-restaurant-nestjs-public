@@ -38,6 +38,7 @@ Microservice implementation of a restaurant management system
 
 * `integration-tests`: a specific service that run end to end tests at the API level through frisby after docker-composing the other services.
 * `gateway` sets up a gateway to `http://localhost:9500` with subroutes to the different micro-services
+* `seed`: a script that fills the databases of the three services with the principal models (menu items, recipes, tables, plus sample table orders, preparations and prepared items). Run `npm install && npm run seed` in this folder once the services are started (`npm run seed:reset` clears the orders first).
 
 ##  Common implementation stack
 

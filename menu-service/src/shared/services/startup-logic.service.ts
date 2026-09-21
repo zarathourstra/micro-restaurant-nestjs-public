@@ -31,124 +31,140 @@ export class StartupLogicService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    /* Starters */
     try {
-      await this.addMenuItem('Homemade foie gras terrine','foie gras',18, CategoryEnum.STARTER, 'https://cdn.pixabay.com/photo/2016/11/12/15/28/restaurant-1819024_960_720.jpg');
+      await this.addMenuItem('Steamed shrimp dumplings (har gow, 4 pcs)', 'har gow', 7.5, CategoryEnum.STARTER);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Soft-boiled egg breaded with breadcrumbs and nuts','soft-boiled egg',16, CategoryEnum.STARTER, 'https://cdn.pixabay.com/photo/2019/06/03/22/06/eggs-4250077_960_720.jpg');
+      await this.addMenuItem('Crispy vegetable spring rolls (4 pcs)', 'spring rolls', 6, CategoryEnum.STARTER);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Goat cheese foom from "Valbonne goat farm"','goat cheese',15, CategoryEnum.STARTER, 'https://cdn.pixabay.com/photo/2016/09/15/19/24/salad-1672505_960_720.jpg');
+      await this.addMenuItem('Pan-fried pork and chive gyoza (6 pcs)', 'gyoza', 7, CategoryEnum.STARTER);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Homemade dill salmon gravlax','salmon',16, CategoryEnum.STARTER, 'https://cdn.pixabay.com/photo/2014/11/05/15/57/salmon-518032_960_720.jpg');
+      await this.addMenuItem('Miso soup with tofu and wakame', 'miso soup', 4, CategoryEnum.STARTER);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Crab maki with fresh mango','crab maki',16, CategoryEnum.STARTER, 'https://cdn.pixabay.com/photo/2016/03/05/22/23/asian-1239269_960_720.jpg');
+      await this.addMenuItem('Edamame with sea salt', 'edamame', 5, CategoryEnum.STARTER);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Burrata Mozzarella','burrata',16, CategoryEnum.STARTER, 'https://cdn.pixabay.com/photo/2021/02/08/12/40/burrata-5994616_960_720.jpg');
+      await this.addMenuItem('Seaweed salad with sesame dressing', 'seaweed salad', 5.5, CategoryEnum.STARTER);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Delicious Pizza Regina','pizza',12, CategoryEnum.MAIN, 'https://cdn.pixabay.com/photo/2020/02/27/20/13/cake-4885715_1280.jpg');
+      await this.addMenuItem('Salmon tartare with avocado and sesame', 'salmon tartare', 9, CategoryEnum.STARTER);
+    } catch (e) {
+    }
+    /* Main */
+    try {
+      await this.addMenuItem('Salmon nigiri (2 pcs)', 'salmon nigiri', 6, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Lasagna al forno','lasagna',18, CategoryEnum.MAIN, 'https://cdn.pixabay.com/photo/2017/02/15/15/17/meal-2069021_1280.jpg');
+      await this.addMenuItem('Tuna nigiri (2 pcs)', 'tuna nigiri', 7, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Homemade beef burger','beef burger',19, CategoryEnum.MAIN, 'https://cdn.pixabay.com/photo/2022/01/17/19/24/burger-6945571_960_720.jpg');
+      await this.addMenuItem('California roll with crab and avocado (8 pcs)', 'california roll', 9, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Beef chuck cooked 48 hours at low temperature','beef chuck',24, CategoryEnum.MAIN, 'https://cdn.pixabay.com/photo/2017/01/23/15/36/eat-2002918_960_720.jpg');
+      await this.addMenuItem('Dragon roll with grilled eel and avocado (8 pcs)', 'dragon roll', 13, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Half cooked tuna and octopus grilled on the plancha','half cooked tuna',23, CategoryEnum.MAIN, 'https://cdn.pixabay.com/photo/2019/09/20/05/53/tuna-4490877_960_720.jpg');
+      await this.addMenuItem('Chirashi bowl: assorted sashimi on sushi rice', 'chirashi', 19, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Brownie (home made)','brownie',6.5, CategoryEnum.DESSERT, 'https://cdn.pixabay.com/photo/2014/11/28/08/03/brownie-548591_1280.jpg');
+      await this.addMenuItem('Assorted sushi and maki platter (24 pcs)', 'sushi platter', 32, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Valrhona chocolate declination with salted chocolate ice cream','chocolate',12, CategoryEnum.DESSERT, 'https://cdn.pixabay.com/photo/2020/07/31/11/53/ice-cream-5452794_960_720.jpg');
+      await this.addMenuItem('Tonkotsu ramen with pork belly and soft-boiled egg', 'ramen', 14, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Marmalade of Menton\'s lemon - Lemon cream - Limoncello jelly and sorbet - Homemade meringue','lemon',12, CategoryEnum.DESSERT, 'https://cdn.pixabay.com/photo/2018/05/01/18/19/eat-3366425_960_720.jpg');
+      await this.addMenuItem('Kung Pao chicken with peanuts', 'kung pao chicken', 15, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Fresh raspberries and peaches','rasp and peaches',12, CategoryEnum.DESSERT, 'https://cdn.pixabay.com/photo/2020/05/15/17/28/fruit-plate-5174414_960_720.jpg');
+      await this.addMenuItem('Sweet and sour pork', 'sweet and sour pork', 14, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Dessert of fresh strawberries and vanilla mascarpone mousse','strawberries',12, CategoryEnum.DESSERT, 'https://cdn.pixabay.com/photo/2018/04/09/18/20/strawberry-3304967_960_720.jpg');
+      await this.addMenuItem('Peking duck (half) with pancakes and hoisin sauce', 'peking duck', 28, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Fresh seasonal fruit','seasonal fruit',12, CategoryEnum.DESSERT, 'https://cdn.pixabay.com/photo/2016/08/09/19/03/fruit-1581400_960_720.jpg');
+      await this.addMenuItem('Mapo tofu with minced pork and Sichuan pepper', 'mapo tofu', 13, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Speculoos tiramisu','tiramisu',10, CategoryEnum.DESSERT, 'https://cdn.pixabay.com/photo/2017/03/19/18/22/italian-food-2157246_960_720.jpg');
+      await this.addMenuItem('Cantonese fried rice with egg and shrimp', 'fried rice', 10, CategoryEnum.MAIN);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Bottled coke (33cl)','coke',3.5, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2019/11/14/15/47/coke-4626458_1280.jpg');
+      await this.addMenuItem('Stir-fried noodles with vegetables', 'chow mein', 11, CategoryEnum.MAIN);
+    } catch (e) {
+    }
+    /* Desserts */
+    try {
+      await this.addMenuItem('Mochi ice cream (3 pcs)', 'mochi', 6, CategoryEnum.DESSERT);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Ice Tea (33cl)','ice tea',3.5, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2022/04/11/08/52/iced-tea-7125271_960_720.jpg');
+      await this.addMenuItem('Mango sticky rice with coconut cream', 'mango sticky rice', 8, CategoryEnum.DESSERT);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Bottled water','bottled water',1, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2014/12/11/09/49/water-564048_960_720.jpg');
+      await this.addMenuItem('Sesame balls filled with red bean paste (4 pcs)', 'sesame balls', 6.5, CategoryEnum.DESSERT);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Sparkling water','sparkling water',1.5, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2018/10/23/19/39/water-3768773_960_720.jpg');
+      await this.addMenuItem('Hong Kong egg tarts (2 pcs)', 'egg tart', 5.5, CategoryEnum.DESSERT);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Spritz','spritz',5, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2020/05/12/21/17/spritz-5164971_960_720.jpg');
+      await this.addMenuItem('Fresh lychees', 'lychees', 5, CategoryEnum.DESSERT);
+    } catch (e) {
+    }
+    /* Beverages */
+    try {
+      await this.addMenuItem('Jasmine tea (pot)', 'jasmine tea', 3.5, CategoryEnum.BEVERAGE);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Margarita','margarita',6.5, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2014/08/11/08/37/margarita-415360_960_720.jpg');
+      await this.addMenuItem('Japanese green tea (sencha, pot)', 'green tea', 3.5, CategoryEnum.BEVERAGE);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Tequila sunrise','tequila',7, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2018/01/25/19/33/summer-3106910_960_720.jpg');
+      await this.addMenuItem('Ramune Japanese soda (20cl)', 'ramune', 3.5, CategoryEnum.BEVERAGE);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Mojito','mojito',6, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2015/03/30/12/35/mojito-698499_960_720.jpg');
+      await this.addMenuItem('Lychee juice (25cl)', 'lychee juice', 3.5, CategoryEnum.BEVERAGE);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Martini','martini',7, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2015/10/19/07/50/cocktail-995574_960_720.jpg');
+      await this.addMenuItem('Bottled water', 'bottled water', 1, CategoryEnum.BEVERAGE);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Lemonade','lemonade',3, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2016/07/21/11/17/drink-1532300_960_720.jpg');
+      await this.addMenuItem('Tsingtao beer (33cl)', 'tsingtao', 4.5, CategoryEnum.BEVERAGE);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Apple juice','apple juice',3, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2016/11/28/22/07/punch-1866178_960_720.jpg');
+      await this.addMenuItem('Warm sake (18cl)', 'sake', 6, CategoryEnum.BEVERAGE);
     } catch (e) {
     }
     try {
-      await this.addMenuItem('Café','café',1.8, CategoryEnum.BEVERAGE, 'https://cdn.pixabay.com/photo/2014/12/11/02/56/coffee-563797_960_720.jpg');
+      await this.addMenuItem('Umeshu plum wine', 'plum wine', 5.5, CategoryEnum.BEVERAGE);
     } catch (e) {
     }
   }

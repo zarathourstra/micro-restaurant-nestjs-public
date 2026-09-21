@@ -114,12 +114,12 @@ describe('Restaurant', () => {
           expect(res.json.tableOrderId).toEqual(currentTableOrder._id);
         });
 
-      // Ordering 2 pizzas
-      console.log('Ordering 2 pizzas');
-      const pizzaMenuItem = menuItemsByShortName['pizza'];
-      const add2PizzasToOrder = new AddMenuItemDto(pizzaMenuItem._id, pizzaMenuItem.shortName, 2);
+      // Ordering 2 fried rice dishes
+      console.log('Ordering 2 fried rice dishes');
+      const friedRiceMenuItem = menuItemsByShortName['fried rice'];
+      const add2FriedRiceToOrder = new AddMenuItemDto(friedRiceMenuItem._id, friedRiceMenuItem.shortName, 2);
       await frisby
-        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}`, add2PizzasToOrder)
+        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}`, add2FriedRiceToOrder)
         .expect("status", 201)
         .expect("jsonTypesStrict", TableOrderValidator)
         .then((res) => {
@@ -128,12 +128,12 @@ describe('Restaurant', () => {
           expect(currentTableOrder.lines.length).toEqual(1);
         });
 
-      // Ordering 3 cokes
-      console.log('Ordering 3 cokes');
-      const cokeMenuItem = menuItemsByShortName['coke'];
-      const add3CokesToOrder = new AddMenuItemDto(cokeMenuItem._id, cokeMenuItem.shortName, 3);
+      // Ordering 3 ramunes
+      console.log('Ordering 3 ramunes');
+      const ramuneMenuItem = menuItemsByShortName['ramune'];
+      const add3RamunesToOrder = new AddMenuItemDto(ramuneMenuItem._id, ramuneMenuItem.shortName, 3);
       await frisby
-        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}`, add3CokesToOrder)
+        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}`, add3RamunesToOrder)
         .expect("status", 201)
         .expect("jsonTypesStrict", TableOrderValidator)
         .then((res) => {
@@ -266,7 +266,7 @@ describe('Restaurant', () => {
         .then((res) => {
           expect(res.json.length).toEqual(1);
           readyBarPreparation = res.json[0];
-          expect(readyBarPreparation.preparedItems[0].shortName).toEqual('coke');
+          expect(readyBarPreparation.preparedItems[0].shortName).toEqual('ramune');
         });
       await frisby
         .get(`${kitchenBaseUrl}${kitchenServicePreparationsPath}?state=preparationStarted&tableNumber=${firstAvailableTable.number}`)
@@ -274,11 +274,11 @@ describe('Restaurant', () => {
         .expect("jsonTypesStrict", "*", PreparationValidator)
         .then((res) => {
           expect(res.json.length).toEqual(1);
-          expect(res.json[0].preparedItems[0].shortName).toEqual('pizza');
+          expect(res.json[0].preparedItems[0].shortName).toEqual('fried rice');
         });
 
-      // Serve the cokes
-      console.log('Serve the cokes');
+      // Serve the ramunes
+      console.log('Serve the ramunes');
       await frisby
         .post(`${kitchenBaseUrl}${kitchenServicePreparationsPath}/${readyBarPreparation._id}/takenToTable`)
         .expect("status", 200)
@@ -320,7 +320,7 @@ describe('Restaurant', () => {
         .then((res) => {
           expect(res.json.length).toEqual(1);
           readyHotDishesPreparation = res.json[0];
-          expect(readyHotDishesPreparation.preparedItems[0].shortName).toEqual('pizza');
+          expect(readyHotDishesPreparation.preparedItems[0].shortName).toEqual('fried rice');
         });
       await frisby
         .get(`${kitchenBaseUrl}${kitchenServicePreparationsPath}?state=preparationStarted&tableNumber=${firstAvailableTable.number}`)
@@ -330,8 +330,8 @@ describe('Restaurant', () => {
           expect(res.json.length).toEqual(0);
         });
 
-      // Serve the pizzas
-      console.log('Serve the pizzas');
+      // Serve the fried rice dishes
+      console.log('Serve the fried rice dishes');
       await frisby
         .post(`${kitchenBaseUrl}${kitchenServicePreparationsPath}/${readyHotDishesPreparation._id}/takenToTable`)
         .expect("status", 200)
