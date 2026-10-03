@@ -9,12 +9,14 @@ export const TableOrderValidator = Joi.object({
   opened: Joi.string().isoDate().required(),
   lines: Joi.array().items(
     Joi.object({
+      _id: Joi.string().required(),
       item: Joi.object({
         _id: Joi.string().required(),
         shortName: Joi.string().required(),
       }),
       howMany: Joi.number().min(0).required(),
       sentForPreparation: Joi.boolean().required(),
+      paid: Joi.boolean().required(),
     })
   ),
   preparations: Joi.array().items(

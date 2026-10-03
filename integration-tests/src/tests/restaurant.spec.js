@@ -340,22 +340,46 @@ describe('Restaurant', () => {
           expect(res.json.takenForServiceAt).not.toBeNull();
         });
 
-      // Bill the table
-      console.log('Bill the table');
+      // Pay all ordering lines while keeping the table open
+      console.log('Pay all ordering lines');
       await frisby
-        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}/bill`)
+        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}/payments`, {
+          lineIds: currentTableOrder.lines.map((line) => line._id),
+        })
         .expect("status", 200)
         .expect("jsonTypesStrict", TableOrderValidator)
         .then((res) => {
           currentTableOrder = res.json;
 
+          expect(currentTableOrder.billed).toBeNull();
+          expect(currentTableOrder.lines.every((line) => line.paid)).toBeTruthy();
+        });
+
+      // Check the table remains occupied until explicitly closed
+      console.log('Check table remains occupied after payment');
+      await frisby
+        .get(`${diningBaseUrl}${diningServiceTablesPath}/${firstAvailableTable.number}`)
+        .expect("status", 200)
+        .expect("jsonTypesStrict", TableValidator)
+        .then((res) => {
+          expect(res.json.taken).toBeTruthy();
+          expect(res.json.tableOrderId).toEqual(currentTableOrder._id);
+        });
+
+      // Close the table after all lines are paid
+      console.log('Close the table');
+      await frisby
+        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}/close`)
+        .expect("status", 200)
+        .expect("jsonTypesStrict", TableOrderValidator)
+        .then((res) => {
+          currentTableOrder = res.json;
           expect(currentTableOrder.billed).not.toBeNull();
         });
 
-      // Check table is well billed
-      console.log('Check table is well billed');
+      // Check a closed table cannot be closed again
       await frisby
-        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}/bill`)
+        .post(`${diningBaseUrl}${diningServiceTableOrdersPath}/${currentTableOrder._id}/close`)
         .expect("status", 422);
 
       // Check table is released
