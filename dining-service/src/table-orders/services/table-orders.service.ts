@@ -9,6 +9,7 @@ import { OrderingLine } from '../schemas/ordering-line.schema';
 
 import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
+import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { PreparationDto } from '../dto/preparation.dto';
 
 import { OrderingLinesWithPreparations } from '../interfaces/ordering-lines-with-preparations.interface';
@@ -20,6 +21,8 @@ import { KitchenProxyService } from './kitchen-proxy.service';
 import { TableOrderIdNotFoundException } from '../exceptions/table-order-id-not-found.exception';
 import { AddMenuItemDtoNotFoundException } from '../exceptions/add-menu-item-dto-not-found.exception';
 import { TableOrderAlreadyBilledException } from '../exceptions/table-order-already-billed.exception';
+import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
+import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
 
 @Injectable()
 export class TableOrdersService {
@@ -134,18 +137,44 @@ export class TableOrdersService {
     return managedLines.preparations;
   }
 
-  async billOrder(tableOrderId: string): Promise<TableOrder> {
+  async payLines(tableOrderId: string, payOrderingLinesDto: PayOrderingLinesDto): Promise<TableOrder> {
     const tableOrder: TableOrder = await this.findOne(tableOrderId);
 
     if (tableOrder.billed !== null) {
       throw new TableOrderAlreadyBilledException(tableOrder);
     }
 
+    const requestedLineIds = payOrderingLinesDto.lineIds;
+    const requestedLineIdSet = new Set(requestedLineIds);
+    const selectedLines = requestedLineIds.map((lineId) => tableOrder.lines.find((line) => line._id?.toString() === lineId));
+
+    if (
+      requestedLineIdSet.size !== requestedLineIds.length ||
+      selectedLines.some((line) => !line || !line.sentForPreparation || line.paid)
+    ) {
+      throw new TableOrderLinesNotPayableException(tableOrder, requestedLineIds);
+    }
+
+    selectedLines.forEach((line) => {
+      line.paid = true;
+    });
+
+    return this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' });
+  }
+
+  async closeOrder(tableOrderId: string): Promise<TableOrder> {
+    const tableOrder: TableOrder = await this.findOne(tableOrderId);
+
+    if (tableOrder.billed !== null) {
+      throw new TableOrderAlreadyBilledException(tableOrder);
+    }
+
+    const unpaidLinesCount = tableOrder.lines.filter((line) => !line.paid).length;
+    if (unpaidLinesCount > 0) {
+      throw new TableOrderNotFullyPaidException(tableOrder, unpaidLinesCount);
+    }
+
     tableOrder.billed = new Date();
-
-    // TODO: Send payment for the table order
-
-    // TODO: Move next line when billing is managed
     await this.tablesService.releaseTable(tableOrder.tableNumber);
 
     return this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' });

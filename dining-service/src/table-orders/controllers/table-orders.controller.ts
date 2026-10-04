@@ -9,6 +9,7 @@ import {
 
 import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
+import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 
 import { GetTableOrderParams } from '../params/get-table-order.params';
 
@@ -21,6 +22,8 @@ import { TableNumberNotFoundException } from '../../tables/exceptions/table-numb
 import { TableOrdersService } from '../services/table-orders.service';
 import { AddMenuItemDtoNotFoundException } from '../exceptions/add-menu-item-dto-not-found.exception';
 import { TableOrderAlreadyBilledException } from '../exceptions/table-order-already-billed.exception';
+import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
+import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
 import { PreparationDto } from '../dto/preparation.dto';
 
 @ApiTags('tableOrders')
@@ -72,12 +75,25 @@ export class TableOrdersController {
   }
 
   @ApiParam({ name: 'tableOrderId' })
-  @ApiOkResponse({ type: TableOrder, description: 'The table has been successfully billed.' })
+  @ApiBody({ type: PayOrderingLinesDto })
+  @ApiOkResponse({ type: TableOrder, description: 'The selected ordering lines have been paid.' })
   @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already billed' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderLinesNotPayableException, description: 'One or more lines cannot be paid' })
   @HttpCode(200)
-  @Post(':tableOrderId/bill')
-  async billTableOrder(@Param() getTableOrderParams: GetTableOrderParams): Promise<TableOrder> {
-    return this.tableOrdersService.billOrder(getTableOrderParams.tableOrderId);
+  @Post(':tableOrderId/payments')
+  async payTableOrderLines(@Param() getTableOrderParams: GetTableOrderParams, @Body() payOrderingLinesDto: PayOrderingLinesDto,): Promise<TableOrder> {
+    return this.tableOrdersService.payLines(getTableOrderParams.tableOrderId, payOrderingLinesDto);
+  }
+
+  @ApiParam({ name: 'tableOrderId' })
+  @ApiOkResponse({ type: TableOrder, description: 'The table has been successfully closed.' })
+  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderNotFullyPaidException, description: 'TableOrder still has unpaid lines' })
+  @HttpCode(200)
+  @Post(':tableOrderId/close') 
+  async closeTableOrder(@Param() getTableOrderParams: GetTableOrderParams): Promise<TableOrder> {
+    return this.tableOrdersService.closeOrder(getTableOrderParams.tableOrderId);
   }
 }
