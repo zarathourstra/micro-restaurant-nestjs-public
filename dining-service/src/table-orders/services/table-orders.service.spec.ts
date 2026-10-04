@@ -14,7 +14,6 @@ import { Table } from '../../tables/schemas/table.schema';
 
 import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
-import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { PreparationDto } from '../dto/preparation.dto';
 import { PreparedItemDto } from '../dto/prepared-item.dto';
 
@@ -23,8 +22,6 @@ import { GetTableOrderParams } from '../params/get-table-order.params';
 import { TableOrderIdNotFoundException } from '../exceptions/table-order-id-not-found.exception';
 import { AddMenuItemDtoNotFoundException } from '../exceptions/add-menu-item-dto-not-found.exception';
 import { TableOrderAlreadyBilledException } from '../exceptions/table-order-already-billed.exception';
-import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
-import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
 
 describe('TableOrdersService', () => {
   let service: TableOrdersService;
@@ -110,13 +107,11 @@ describe('TableOrdersService', () => {
         item: mockOrderingItemList[0],
         howMany: 1,
         sentForPreparation: false,
-        paid:false
       },
       {
         item: mockOrderingItemList[1],
         howMany: 2,
         sentForPreparation: false,
-        paid:false
       },
     ];
 
@@ -125,13 +120,11 @@ describe('TableOrdersService', () => {
         item: mockOrderingItemList[0],
         howMany: 1,
         sentForPreparation: true,
-        paid:false
       },
       {
         item: mockOrderingItemList[1],
         howMany: 2,
         sentForPreparation: true,
-        paid:false
       },
     ];
 
@@ -486,98 +479,36 @@ describe('TableOrdersService', () => {
     });
   });
 
-  describe('payLines', () => {
-    it('should pay complete selected lines without releasing the table', async () => {
+  describe('billOrder', () => {
+    it('should bill order of tableOrder', async () => {
       const mockOpened = new Date();
-      const lineIds = ['64b000000000000000000001', '64b000000000000000000002'];
-      const lines = mockOrderingLineSentForPrepationList.map((line, index) => ({ ...line, _id: lineIds[index] }));
-      const mockOpenedTableOrder = buildMockTableOrder(mockOpened, lines);
-      jest.spyOn(service, 'findOne').mockImplementationOnce(() =>
-        Promise.resolve(mockOpenedTableOrder),
-      );
-      const updatedLines = lines.map((line, index) => ({ ...line, paid: index === 0 }));
-      const mockPaidTableOrder = buildMockTableOrder(mockOpened, updatedLines);
-      jest.spyOn(model, 'findByIdAndUpdate').mockResolvedValueOnce(mockPaidTableOrder);
-
-      const payOrderingLinesDto: PayOrderingLinesDto = { lineIds: [lineIds[0]] };
-      const updatedTableOrder = await service.payLines(mockOpenedTableOrder._id, payOrderingLinesDto);
-
-      expect(updatedTableOrder).toEqual(mockPaidTableOrder);
-      expect(tablesService.releaseTable).not.toHaveBeenCalled();
-    });
-
-    it('should reject lines that have not been sent for preparation', async () => {
-      const lineId = '64b000000000000000000001';
-      const mockOpened = new Date();
-      const line = { ...mockOrderingLineList[0], _id: lineId, sentForPreparation: false };
-      const mockOpenedTableOrder = buildMockTableOrder(mockOpened, [line]);
-      jest.spyOn(service, 'findOne').mockImplementationOnce(() =>
-        Promise.resolve(mockOpenedTableOrder),
-      );
-
-      const testPayLines = async () => {
-        await service.payLines(mockOpenedTableOrder._id, { lineIds: [lineId] });
-      };
-      await expect(testPayLines).rejects.toThrow(TableOrderLinesNotPayableException);
-      expect(model.findByIdAndUpdate).not.toHaveBeenCalled();
-    });
-
-    it('should reject lines that have already been paid', async () => {
-      const lineId = '64b000000000000000000001';
-      const mockOpened = new Date();
-      const line = { ...mockOrderingLineSentForPrepationList[0], _id: lineId, paid: true };
-      const mockOpenedTableOrder = buildMockTableOrder(mockOpened, [line]);
-      jest.spyOn(service, 'findOne').mockImplementationOnce(() =>
-        Promise.resolve(mockOpenedTableOrder),
-      );
-
-      await expect(service.payLines(mockOpenedTableOrder._id, { lineIds: [lineId] }))
-        .rejects.toThrow(TableOrderLinesNotPayableException);
-    });
-  });
-
-  describe('closeOrder', () => {
-    it('should refuse to close while a line is unpaid', async () => {
-      const mockOpened = new Date();
-      const mockOpenedTableOrder = buildMockTableOrder(mockOpened, mockOrderingLineSentForPrepationList);
-      jest.spyOn(service, 'findOne').mockImplementationOnce(() =>
-        Promise.resolve(mockOpenedTableOrder),
-      );
-
-      await expect(service.closeOrder(mockOpenedTableOrder._id))
-        .rejects.toThrow(TableOrderNotFullyPaidException);
-      expect(tablesService.releaseTable).not.toHaveBeenCalled();
-    });
-
-    it('should close and release a fully paid table order', async () => {
-      const mockOpened = new Date();
-      const paidLines = mockOrderingLineSentForPrepationList.map((line) => ({ ...line, paid: true }));
-      const mockOpenedTableOrder = buildMockTableOrder(mockOpened, paidLines);
+      const mockOpenedTableOrder = buildMockTableOrder(mockOpened);
       jest.spyOn(service, 'findOne').mockImplementationOnce(() =>
         Promise.resolve(mockOpenedTableOrder),
       );
       jest.spyOn(tablesService, 'releaseTable').mockImplementationOnce(() =>
         Promise.resolve(mockTable),
       );
-      const mockClosedTableOrder = buildMockTableOrder(mockOpened, paidLines, [], new Date());
-      jest.spyOn(model, 'findByIdAndUpdate').mockResolvedValueOnce(mockClosedTableOrder);
+      const mockBilled = new Date();
+      const mockBilledTableOrder = buildMockTableOrder(mockOpened, [], [], mockBilled);
+      jest.spyOn(model, 'findByIdAndUpdate').mockResolvedValueOnce(mockBilledTableOrder);
 
-      const closedTableOrder = await service.closeOrder(mockOpenedTableOrder._id);
-
-      expect(closedTableOrder).toEqual(mockClosedTableOrder);
-      expect(tablesService.releaseTable).toHaveBeenCalledWith(mockOpenedTableOrder.tableNumber);
+      const updatedTableOrder = await service.billOrder(mockOpenedTableOrder._id);
+      expect(updatedTableOrder).toEqual(mockBilledTableOrder);
     });
 
-    it('should return TableOrderAlreadyBilledException if tableOrder is already closed', async () => {
+    it('should return TableOrderAlreadyBilledException if tableOrder is already billed', async () => {
       const mockOpened = new Date();
-      const mockClosed = new Date();
-      const mockClosedTableOrder = buildMockTableOrder(mockOpened, [], [], mockClosed);
+      const mockBilled = new Date();
+      const mockBilledTableOrder = buildMockTableOrder(mockOpened, [], [], mockBilled);
       jest.spyOn(service, 'findOne').mockImplementationOnce(() =>
-        Promise.resolve(mockClosedTableOrder),
+        Promise.resolve(mockBilledTableOrder),
       );
 
-      await expect(service.closeOrder(mockClosedTableOrder._id))
-        .rejects.toThrow(TableOrderAlreadyBilledException);
+      const testBillOrder = async () => {
+        await service.billOrder(mockBilledTableOrder._id);
+      };
+      await expect(testBillOrder).rejects.toThrow(TableOrderAlreadyBilledException);
     });
   });
 });

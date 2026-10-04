@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { ApiProperty } from '@nestjs/swagger';
 
-import { OrderingLine, OrderingLineSchema } from './ordering-line.schema';
+import { OrderingLine } from './ordering-line.schema';
 
 import { PreparationDto } from '../dto/preparation.dto';
 
@@ -28,7 +28,7 @@ export class TableOrder {
   opened: Date;
 
   @ApiProperty()
-  @Prop({ type:[OrderingLineSchema], default: [] })
+  @Prop({ default: [] })
   lines: OrderingLine[];
 
   @ApiProperty()

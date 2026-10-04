@@ -150,8 +150,7 @@ describe('TableOrdersController (e2e)', () => {
     startOrdering: () => (buildMockTableOrder(new Date())),
     addOrderingLineToTableOrder: () => (buildMockTableOrder(new Date(), mockOrderingLineList)),
     sendItemsForPreparation: () => (mockPreparations),
-    payLines: () => (buildMockTableOrder(new Date(), mockOrderingLineList.map((line) => ({ ...line, paid: true })), mockPreparations)),
-    closeOrder: () => (buildMockTableOrder(new Date(), mockOrderingLineList.map((line) => ({ ...line, paid: true })), mockPreparations, new Date())),
+    billOrder: () => (buildMockTableOrder(new Date(), mockOrderingLineList, mockPreparations, new Date())),
   };
 
   beforeAll(async () => {
@@ -224,22 +223,13 @@ describe('TableOrdersController (e2e)', () => {
       .expect(tableOrdersService.sendItemsForPreparation());
   });
 
-  it('/tableOrders/1/payments (POST)', () => {
+  it('/tableOrders/1/bill (POST)', () => {
     return request(app.getHttpServer())
-      .post('/tableOrders/1/payments')
-      .send({ lineIds: ['64b000000000000000000001'] })
-      .set('Accept', 'application/json')
-      .expect(200)
-      .expect(tableOrdersService.payLines());
-  });
-
-  it('/tableOrders/1/close (POST)', () => {
-    return request(app.getHttpServer())
-      .post('/tableOrders/1/close')
+      .post('/tableOrders/1/bill')
       .send()
       .set('Accept', 'application/json')
       .expect(200)
-      .expect(tableOrdersService.closeOrder());
+      .expect(tableOrdersService.billOrder());
   });
 
   afterAll(async () => {

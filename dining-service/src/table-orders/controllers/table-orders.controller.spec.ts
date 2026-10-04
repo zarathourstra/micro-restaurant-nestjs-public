@@ -5,7 +5,6 @@ import { TableOrdersService } from '../services/table-orders.service';
 
 import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
-import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { PreparationDto } from '../dto/preparation.dto';
 import { PreparedItemDto } from '../dto/prepared-item.dto';
 import { GetTableOrderParams } from '../params/get-table-order.params';
@@ -90,13 +89,11 @@ describe('TableOrdersController', () => {
         item: mockOrderingItemList[0],
         howMany: 1,
         sentForPreparation: false,
-        paid:false
       },
       {
         item: mockOrderingItemList[1],
         howMany: 2,
         sentForPreparation: false,
-        paid:false
       },
     ];
 
@@ -167,8 +164,7 @@ describe('TableOrdersController', () => {
             startOrdering: jest.fn(),
             addOrderingLineToTableOrder: jest.fn(),
             sendItemsForPreparation: jest.fn(),
-            payLines: jest.fn(),
-            closeOrder: jest.fn(),
+            billOrder: jest.fn(),
           },
         },
       ],
@@ -227,29 +223,16 @@ describe('TableOrdersController', () => {
     });
   });
 
-  describe('payTableOrderLines()', () => {
-    it('should pay selected ordering lines', async () => {
-      const payOrderingLinesDto: PayOrderingLinesDto = {
-        lineIds: ['64b000000000000000000001'],
-      };
-      const createSpy = jest
-        .spyOn(service, 'payLines')
-        .mockResolvedValueOnce(mockTableOrder);
-
-      await controller.payTableOrderLines(mockGetTableOrderParams, payOrderingLinesDto);
-      expect(createSpy).toHaveBeenCalledWith(mockGetTableOrderParams.tableOrderId, payOrderingLinesDto);
-    });
-  });
-
-  describe('closeTableOrder()', () => {
-    it('should close the table order', async () => {
+  describe('billTableOrder()', () => {
+    it('should bill order from tableOrder', async () => {
       const mockOpened = new Date();
+      const mockOrderingLines = mockOrderingLineList.map((orderingLine) => ({ ...orderingLine, sentForPreparation: true }))
       const mockBilled = new Date();
       const createSpy = jest
-        .spyOn(service, 'closeOrder')
-        .mockResolvedValueOnce(buildMockTableOrder(mockOpened, mockOrderingLineList, mockPreparations, mockBilled));
+        .spyOn(service, 'billOrder')
+        .mockResolvedValueOnce(buildMockTableOrder(mockOpened, mockOrderingLines, mockPreparations, mockBilled));
 
-      await controller.closeTableOrder(mockGetTableOrderParams);
+      await controller.billTableOrder(mockGetTableOrderParams);
       expect(createSpy).toHaveBeenCalledWith(mockGetTableOrderParams.tableOrderId);
     });
   });
