@@ -34,7 +34,8 @@ export class TableOrdersService {
   ) {}
 
   async findAll(): Promise<TableOrder[]> {
-    return this.tableOrderModel.find().lean();
+    const tableOrders = await this.tableOrderModel.find().lean();
+    return tableOrders.map((tableOrder) => this.normalizePreparations(tableOrder));
   }
 
   async findOne(tableOrderId: string): Promise<TableOrder> {
@@ -44,7 +45,14 @@ export class TableOrdersService {
       throw new TableOrderIdNotFoundException(tableOrderId);
     }
 
-    return foundItem;
+    return this.normalizePreparations(foundItem);
+  }
+
+  private normalizePreparations(tableOrder: TableOrder): TableOrder {
+    tableOrder.preparations = (tableOrder.preparations ?? []).map((preparation) =>
+      PreparationDto.kitchenPreparationToPreparationDtoFactory(preparation),
+    );
+    return tableOrder;
   }
 
   async startOrdering(startOrderingDto: StartOrderingDto): Promise<TableOrder> {
@@ -55,7 +63,7 @@ export class TableOrdersService {
     tableOrder.customersCount = startOrderingDto.customersCount;
     tableOrder.opened = new Date();
 
-    return await this.tableOrderModel.create(tableOrder);
+    return this.normalizePreparations(await this.tableOrderModel.create(tableOrder));
   }
 
   async addOrderingLineToTableOrder(tableOrderId: string, addMenuItemDto: AddMenuItemDto): Promise<TableOrder> {
@@ -86,18 +94,18 @@ export class TableOrdersService {
       const orderingLineIndex = alreadyOrderedLinesIndexes[0];
       tableOrder.lines[orderingLineIndex].howMany += addMenuItemDto.howMany;
 
-      return this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' });
+      return this.normalizePreparations(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
     }
 
     const orderingLine: OrderingLine = new OrderingLine();
     orderingLine.item = orderingItem;
     orderingLine.howMany = addMenuItemDto.howMany;
 
-    return this.tableOrderModel.findByIdAndUpdate(
+    return this.normalizePreparations(await this.tableOrderModel.findByIdAndUpdate(
       tableOrder._id,
       { $push: { lines: orderingLine } },
       { returnDocument: 'after' },
-    );
+    ));
   }
 
   async manageOrderingLines(tableNumber: number, orderingLines: OrderingLine[]): Promise<OrderingLinesWithPreparations> {
@@ -129,12 +137,15 @@ export class TableOrdersService {
 
     const managedLines: OrderingLinesWithPreparations = await this.manageOrderingLines(tableOrder.tableNumber, tableOrder.lines);
 
+    const preparations = managedLines.preparations ?? [];
+
     tableOrder.lines = managedLines.orderingLines;
-    tableOrder.preparations = tableOrder.preparations.concat(managedLines.preparations);
+    tableOrder.preparations = [...(tableOrder.preparations ?? []), ...preparations];
+
 
     await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' });
 
-    return managedLines.preparations;
+    return preparations;
   }
 
   async payLines(tableOrderId: string, payOrderingLinesDto: PayOrderingLinesDto): Promise<TableOrder> {
@@ -159,7 +170,7 @@ export class TableOrdersService {
       line.paid = true;
     });
 
-    return this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' });
+    return this.normalizePreparations(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
   }
 
   async closeOrder(tableOrderId: string): Promise<TableOrder> {
@@ -177,6 +188,6 @@ export class TableOrdersService {
     tableOrder.billed = new Date();
     await this.tablesService.releaseTable(tableOrder.tableNumber);
 
-    return this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' });
+    return this.normalizePreparations(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
   }
 }

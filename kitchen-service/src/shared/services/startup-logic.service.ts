@@ -29,132 +29,44 @@ export class StartupLogicService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
-    /* Starters */
-    try {
-      await this.addRecipe('foie gras', PostEnum.HOT_DISH, ['Take piece of foie gras', 'Cook it!'], 18);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('soft-boiled egg', PostEnum.HOT_DISH,['Take egg', 'Cook it!'], 16);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('goat cheese', PostEnum.COLD_DISH,['Take goat cheese', 'Cook it!'], 15);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('salmon', PostEnum.HOT_DISH, ['Take salmon', 'Cook it!'], 16);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('crab maki', PostEnum.HOT_DISH, ['Take crab', 'Cook it!', 'Make maki'], 16);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('burrata', PostEnum.COLD_DISH, ['Take burrata', 'Take mozzarella', 'Put them togther', 'Shake', 'Ok it\'s finished!'], 16);
-    } catch (e) {
-    }
+    const seedRecipes: Array<{ shortName: string; post: PostEnum; steps: string[]; time: number }> = [
+      { shortName: 'edamame', post: PostEnum.HOT_DISH, steps: ['Rincer les edamames', 'Les faire cuire à la vapeur', 'Les assaisonner'], time: 10 },
+      { shortName: 'soupe miso', post: PostEnum.HOT_DISH, steps: ['Préparer le bouillon miso', 'Ajouter le tofu', 'Servir chaud'], time: 12 },
+      { shortName: 'salade d\'algues', post: PostEnum.COLD_DISH, steps: ['Laver les algues', 'Ajouter la vinaigrette', 'Servir bien frais'], time: 10 },
+      { shortName: 'tartare de saumon', post: PostEnum.COLD_DISH, steps: ['Découper le saumon', 'Rajouter l\'avocat', 'Assaisonner'], time: 12 },
+      { shortName: 'gyoza', post: PostEnum.HOT_DISH, steps: ['Cuire les gyoza', 'Les griller', 'Servir chaud'], time: 14 },
+      { shortName: 'tofu agedashi', post: PostEnum.HOT_DISH, steps: ['Paner le tofu', 'Le frire', 'Ajouter le bouillon'], time: 15 },
+      { shortName: 'takoyaki', post: PostEnum.HOT_DISH, steps: ['Préparer la pâte', 'Ajouter le poulpe', 'Griller jusqu\'à dorure'], time: 16 },
+      { shortName: 'nigiri saumon', post: PostEnum.HOT_DISH, steps: ['Préparer le riz', 'Ajouter le saumon', 'Former les nigiri'], time: 8 },
+      { shortName: 'nigiri thon', post: PostEnum.HOT_DISH, steps: ['Préparer le riz', 'Ajouter le thon', 'Former les nigiri'], time: 8 },
+      { shortName: 'california roll', post: PostEnum.HOT_DISH, steps: ['Préparer le rouleau', 'Ajouter le crabe', 'Couper en morceaux'], time: 10 },
+      { shortName: 'dragon roll', post: PostEnum.HOT_DISH, steps: ['Préparer le rouleau', 'Ajouter l\'anguille', 'Servir avec la sauce'], time: 11 },
+      { shortName: 'roll thon épicé', post: PostEnum.HOT_DISH, steps: ['Préparer le riz', 'Ajouter le thon épicé', 'Rouler puis couper'], time: 10 },
+      { shortName: 'chirashi', post: PostEnum.HOT_DISH, steps: ['Préparer le riz vinaigré', 'Disposer les poissons', 'Servir'], time: 12 },
+      { shortName: 'plateau sushi', post: PostEnum.HOT_DISH, steps: ['Préparer les pièces', 'Disposer sur le plateau', 'Servir frais'], time: 14 },
+      { shortName: 'sashimi saumon', post: PostEnum.COLD_DISH, steps: ['Tailler les tranches', 'Disposer sur assiette', 'Servir froid'], time: 10 },
+      { shortName: 'sashimi thon', post: PostEnum.COLD_DISH, steps: ['Tailler les tranches', 'Disposer sur assiette', 'Servir froid'], time: 10 },
+      { shortName: 'ramen', post: PostEnum.HOT_DISH, steps: ['Cuire les nouilles', 'Préparer le bouillon', 'Ajouter l\'œuf et le porc'], time: 18 },
+      { shortName: 'poulet teriyaki', post: PostEnum.HOT_DISH, steps: ['Griller le poulet', 'Ajouter la sauce teriyaki', 'Servir avec le riz'], time: 18 },
+      { shortName: 'boeuf yakiniku', post: PostEnum.HOT_DISH, steps: ['Griller le boeuf', 'Ajouter la sauce', 'Servir avec le riz'], time: 20 },
+      { shortName: 'udon tempura', post: PostEnum.HOT_DISH, steps: ['Cuire les udon', 'Ajouter les tempuras', 'Servir chaud'], time: 16 },
+      { shortName: 'mochi', post: PostEnum.COLD_DISH, steps: ['Sortir les mochi', 'Servir glacés', 'Ajouter la garniture'], time: 6 },
+      { shortName: 'dorayaki', post: PostEnum.COLD_DISH, steps: ['Préparer les pancakes', 'Ajouter la pâte de haricots', 'Servir'], time: 7 },
+      { shortName: 'cheesecake matcha', post: PostEnum.COLD_DISH, steps: ['Préparer le cheesecake', 'Ajouter la poudre de matcha', 'Refroidir'], time: 12 },
+      { shortName: 'thé jasmin', post: PostEnum.BAR, steps: ['Infuser le thé', 'Servir bien chaud'], time: 3 },
+      { shortName: 'thé vert', post: PostEnum.BAR, steps: ['Infuser le thé', 'Servir chaud'], time: 3 },
+      { shortName: 'ramune', post: PostEnum.BAR, steps: ['Ouvrir la bouteille', 'Servir bien frais'], time: 2 },
+      { shortName: 'eau en bouteille', post: PostEnum.BAR, steps: ['Ouvrir la bouteille', 'Servir'], time: 2 },
+      { shortName: 'saké', post: PostEnum.BAR, steps: ['Servir chaud ou froid', 'Décanter si nécessaire'], time: 2 },
+      { shortName: 'asahi', post: PostEnum.BAR, steps: ['Ouvrir la bière', 'Servir frais'], time: 2 },
+      { shortName: 'vin de prune', post: PostEnum.BAR, steps: ['Servir bien frais', 'Déguster'], time: 3 },
+    ];
 
-    /* Main */
-    try {
-      await this.addRecipe('pizza', PostEnum.HOT_DISH, ['Stretch pizza dough', 'Put toppings on it', 'Bake at 350 Celsius degree'], 10);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('lasagna', PostEnum.HOT_DISH, ['Get the frozen dish', 'Oven it at 220 Celsius degree'], 8);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('beef burger', PostEnum.HOT_DISH, ['Take piece of beef', 'Cook it!', 'Make the burger', 'Don\'t forget fries!!'], 19);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('beef chuck', PostEnum.HOT_DISH, ['Take piece of beef chuck', 'Cook it!', 'Don\'t forget fries!!'], 24);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('half cooked tuna', PostEnum.HOT_DISH, ['Take tuna', 'Half-cook it!'], 23);
-    } catch (e) {
-    }
-
-    /* Desserts */
-    try {
-      await this.addRecipe('brownie', PostEnum.COLD_DISH, ['Take a piece of brownie', 'Oven it quickly', 'Put it in a plate', 'Add some vanilla ice', 'Add some cream'], 6);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('chocolate', PostEnum.COLD_DISH, ['Put some chocolate ice cream in a plate'], 12);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('lemon', PostEnum.COLD_DISH, ['Take lemon cream', 'Take limoncello sorbet', 'Put all in a plate'], 12);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('rasp and peaches', PostEnum.COLD_DISH, ['Take raspberries', 'Take peaches', 'That\'s it'], 12);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('strawberries', PostEnum.COLD_DISH, ['Put some strawberries in a plate', 'Add vanilla mascarpone mousse'], 12);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('seasonal fruit', PostEnum.COLD_DISH, ['Put some seasonal fruit in a bowl'], 12);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('tiramisu', PostEnum.COLD_DISH, ['Take a prepared tiramisu'], 10);
-    } catch (e) {
-    }
-
-    /* Beverage */
-    try {
-      await this.addRecipe('coke', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('ice tea', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('bottled water', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('sparkling water', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('spritz', PostEnum.BAR, ['Prosecco: 3 cl', 'Aperol: 2 cl', 'A bit of Schweppes Tonic Original', 'Shake it!',  'Serve it!'], 20);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('margarita', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('tequila', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('mojito', PostEnum.BAR, ['Put crushed ice in a glass', 'Put some mint leaves', 'Cut lemon and put it in the glass', 'Add some cane sugar syrup', 'Crush the lemon', 'Add some crushed ice', 'Add the rhum', 'Add the sparkling water', 'Mix it up!', 'Serve it!'], 30);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('martini', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('lemonade', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('apple juice', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
-    }
-    try {
-      await this.addRecipe('café', PostEnum.BAR, ['Serve it!'], 2);
-    } catch (e) {
+    for (const recipe of seedRecipes) {
+      try {
+        await this.addRecipe(recipe.shortName, recipe.post, recipe.steps, recipe.time);
+      } catch (e) {
+      }
     }
   }
 }

@@ -101,4 +101,28 @@ describe('StartupLogicService', () => {
 
     expect(service.addRecipe).toHaveBeenCalledTimes(30);
   });
+
+  it('should seed recipes using the same short names as the menu', async () => {
+    service.addRecipe = jest.fn();
+    await service.onApplicationBootstrap();
+
+    expect(service.addRecipe).toHaveBeenCalledWith(
+      'edamame',
+      PostEnum.HOT_DISH,
+      expect.any(Array),
+      expect.any(Number),
+    );
+    expect(service.addRecipe).toHaveBeenCalledWith(
+      'soupe miso',
+      PostEnum.HOT_DISH,
+      expect.any(Array),
+      expect.any(Number),
+    );
+    expect(service.addRecipe).toHaveBeenCalledWith(
+      'ramune',
+      PostEnum.BAR,
+      expect.any(Array),
+      expect.any(Number),
+    );
+  });
 });

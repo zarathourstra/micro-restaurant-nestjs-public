@@ -31,11 +31,10 @@ export class KitchenProxyService {
       const sendItemsToCookCallResponse: AxiosResponse<PreparationDto[]> = await firstValueFrom(this.httpService.post(`${this._baseUrl}${this._preparationsPath}`, preparationRequest));
 
       return sendItemsToCookCallResponse.data.map((preparation) => PreparationDto.kitchenPreparationToPreparationDtoFactory(preparation));
-    } catch (e) {
-      /* istanbul ignore next */
-      console.error('Error happened');
-      /* istanbul ignore next */
-      console.error(e);
+    } 
+    catch (e: any) {
+      console.error('Error while sending items to kitchen', e.response?.data ?? e.message ?? e);
+      throw new Error('Kitchen preparation failed');
     }
   }
 }

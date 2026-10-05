@@ -24,7 +24,7 @@ describe('KitchenProxyService', () => {
   let mockOrderingLines: OrderingLine[];
   let mockRecipeList;
   let mockTableNumbers: number;
-  let mockPreparations: Function;
+  let mockKitchenPreparations: Function;
   let postSendItemsToCookAxiosResponse: Function;
 
   beforeEach(async () => {
@@ -45,11 +45,13 @@ describe('KitchenProxyService', () => {
         item: mockOrderingItem,
         howMany: 1,
         sentForPreparation: false,
+        paid: false,
       },
       {
         item: mockOrderingItem,
         howMany: 2,
         sentForPreparation: false,
+        paid: false,
       }
     ];
 
@@ -76,7 +78,7 @@ describe('KitchenProxyService', () => {
 
     mockTableNumbers = 1;
 
-    mockPreparations = (shouldBeReadyAtInPast = false) => ([
+    mockKitchenPreparations = (shouldBeReadyAtInPast = false) => ([
       {
         _id: 'cooked item id 1',
         shouldBeReadyAt: shouldBeReadyAtInPast
@@ -85,8 +87,16 @@ describe('KitchenProxyService', () => {
         preparedItems: [
           {
             _id: 'prepared item 1',
-            shortName: 'menu item shortname',
-          }
+            shortName: 'menu item shortname 1',
+          },
+          {
+            _id: 'prepared item 2',
+            shortName: 'menu item shortname 1',
+          },
+          {
+            _id: 'prepared item 3',
+            shortName: 'menu item shortname 1',
+          },
         ],
       },
       {
@@ -97,7 +107,7 @@ describe('KitchenProxyService', () => {
         preparedItems: [
           {
             _id: 'prepared item 1',
-            shortName: 'menu item shortname',
+            shortName: 'menu item shortname 2',
           }
         ],
       },
@@ -109,7 +119,7 @@ describe('KitchenProxyService', () => {
         preparedItems: [
           {
             _id: 'prepared item 1',
-            shortName: 'menu item shortname',
+            shortName: 'menu item shortname 3',
           }
         ],
       }
@@ -153,12 +163,28 @@ describe('KitchenProxyService', () => {
   });
 
   describe('sendItemsToCook', () => {
-    it('should return the new preparations from given orderingLine', async () => {
-      const mockedPreparationsResult: PreparationDto[] = mockPreparations(true);
-      jest.spyOn(httpService, 'post').mockImplementationOnce(() => of(postSendItemsToCookAxiosResponse(mockedPreparationsResult)));
+    it('should return prepared items grouped by short name and quantity', async () => {
+      const kitchenPreparations = mockKitchenPreparations(true);
+      jest.spyOn(httpService, 'post').mockImplementationOnce(() => of(postSendItemsToCookAxiosResponse(kitchenPreparations)));
 
       const preparationDtos = await service.sendItemsToCook(mockTableNumbers, mockOrderingLines);
-      expect(preparationDtos).toEqual(mockedPreparationsResult);
+      expect(preparationDtos).toEqual([
+        {
+          _id: 'cooked item id 1',
+          shouldBeReadyAt: expect.any(String),
+          items: [{ shortName: 'menu item shortname 1', howMany: 3 }],
+        },
+        {
+          _id: 'cooked item id 2',
+          shouldBeReadyAt: expect.any(String),
+          items: [{ shortName: 'menu item shortname 2', howMany: 1 }],
+        },
+        {
+          _id: 'cooked item id 3',
+          shouldBeReadyAt: expect.any(String),
+          items: [{ shortName: 'menu item shortname 3', howMany: 1 }],
+        },
+      ]);
     });
   });
 });
