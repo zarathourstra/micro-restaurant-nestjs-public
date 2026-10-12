@@ -38,6 +38,18 @@ export class TableOrder {
   @ApiProperty()
   @Prop({ default: null })
   billed: Date;
+
+  @ApiProperty()
+  @Prop({ default: 0, min: 0, max: 100 })
+  discountPercent?: number;
+
+  @ApiProperty({ required: false, isArray: true })
+  @Prop({ type: [String], default: [] })
+  discountLineIds?: string[];
+
+  // Computed on read in TableOrdersService.computeTotals() - not persisted (no @Prop).
+  @ApiProperty({ required: false })
+  totals?: { subtotal: number; discountAmount: number; total: number };
 }
 
 export const TableOrderSchema = SchemaFactory.createForClass(TableOrder);
