@@ -10,6 +10,7 @@ import {
 import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
 import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
+import { ApplyDiscountDto } from '../dto/apply-discount.dto';
 
 import { GetTableOrderParams } from '../params/get-table-order.params';
 
@@ -24,6 +25,7 @@ import { AddMenuItemDtoNotFoundException } from '../exceptions/add-menu-item-dto
 import { TableOrderAlreadyBilledException } from '../exceptions/table-order-already-billed.exception';
 import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
 import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
+import { TableOrderLineNotFoundException } from '../exceptions/table-order-line-not-found.exception';
 import { PreparationDto } from '../dto/preparation.dto';
 
 @ApiTags('tableOrders')
@@ -93,8 +95,20 @@ export class TableOrdersController {
   @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
   @ApiUnprocessableEntityResponse({ type: TableOrderNotFullyPaidException, description: 'TableOrder still has unpaid lines' })
   @HttpCode(200)
-  @Post(':tableOrderId/close') 
+  @Post(':tableOrderId/close')
   async closeTableOrder(@Param() getTableOrderParams: GetTableOrderParams): Promise<TableOrder> {
     return this.tableOrdersService.closeOrder(getTableOrderParams.tableOrderId);
+  }
+
+  @ApiParam({ name: 'tableOrderId' })
+  @ApiBody({ type: ApplyDiscountDto })
+  @ApiOkResponse({ type: TableOrder, description: 'The discount has been applied to the selected ordering lines.' })
+  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderLineNotFoundException, description: 'A lineId does not match any line on the table order' })
+  @HttpCode(200)
+  @Post(':tableOrderId/discount')
+  async applyDiscount(@Param() getTableOrderParams: GetTableOrderParams, @Body() applyDiscountDto: ApplyDiscountDto): Promise<TableOrder> {
+    return this.tableOrdersService.applyDiscount(getTableOrderParams.tableOrderId, applyDiscountDto);
   }
 }

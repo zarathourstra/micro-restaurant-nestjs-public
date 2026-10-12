@@ -10,6 +10,7 @@ import { OrderingLine } from '../schemas/ordering-line.schema';
 import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
 import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
+import { ApplyDiscountDto } from '../dto/apply-discount.dto';
 import { PreparationDto } from '../dto/preparation.dto';
 
 import { OrderingLinesWithPreparations } from '../interfaces/ordering-lines-with-preparations.interface';
@@ -23,6 +24,7 @@ import { AddMenuItemDtoNotFoundException } from '../exceptions/add-menu-item-dto
 import { TableOrderAlreadyBilledException } from '../exceptions/table-order-already-billed.exception';
 import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
 import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
+import { TableOrderLineNotFoundException } from '../exceptions/table-order-line-not-found.exception';
 
 @Injectable()
 export class TableOrdersService {
@@ -36,7 +38,7 @@ export class TableOrdersService {
   async findAll(billed?: boolean): Promise<TableOrder[]> {
     const filter = billed === undefined ? {} : { billed: billed ? { $ne: null } : null };
     const tableOrders = await this.tableOrderModel.find(filter).lean();
-    return tableOrders.map((tableOrder) => this.normalizePreparations(tableOrder));
+    return tableOrders.map((tableOrder) => this.finalizeTableOrder(tableOrder));
   }
 
   async findOne(tableOrderId: string): Promise<TableOrder> {
@@ -46,14 +48,35 @@ export class TableOrdersService {
       throw new TableOrderIdNotFoundException(tableOrderId);
     }
 
-    return this.normalizePreparations(foundItem);
+    return this.finalizeTableOrder(foundItem);
   }
 
-  private normalizePreparations(tableOrder: TableOrder): TableOrder {
+  private finalizeTableOrder(tableOrder: TableOrder): TableOrder {
     tableOrder.preparations = (tableOrder.preparations ?? []).map((preparation) =>
       PreparationDto.kitchenPreparationToPreparationDtoFactory(preparation),
     );
+    tableOrder.totals = this.computeTotals(tableOrder);
     return tableOrder;
+  }
+
+  // Computed on the way out, not persisted - the first place dining-service hands
+  // back a real server-computed amount due (direct/BFF can only fake this client-side).
+  private computeTotals(tableOrder: TableOrder): { subtotal: number; discountAmount: number; total: number } {
+    const lines = tableOrder.lines ?? [];
+    const subtotal = lines.reduce((sum, line) => sum + line.price * line.howMany, 0);
+
+    const discountPercent = tableOrder.discountPercent ?? 0;
+    const discountLineIds = new Set(tableOrder.discountLineIds ?? []);
+    const discountBase = lines
+      .filter((line) => discountLineIds.has(line._id?.toString()))
+      .reduce((sum, line) => sum + line.price * line.howMany, 0);
+    const discountAmount = Math.round(discountBase * discountPercent) / 100;
+
+    return {
+      subtotal,
+      discountAmount,
+      total: subtotal - discountAmount,
+    };
   }
 
   async startOrdering(startOrderingDto: StartOrderingDto): Promise<TableOrder> {
@@ -64,7 +87,7 @@ export class TableOrdersService {
     tableOrder.customersCount = startOrderingDto.customersCount;
     tableOrder.opened = new Date();
 
-    return this.normalizePreparations(await this.tableOrderModel.create(tableOrder));
+    return this.finalizeTableOrder(await this.tableOrderModel.create(tableOrder));
   }
 
   async addOrderingLineToTableOrder(tableOrderId: string, addMenuItemDto: AddMenuItemDto): Promise<TableOrder> {
@@ -84,6 +107,10 @@ export class TableOrdersService {
       throw new AddMenuItemDtoNotFoundException(addMenuItemDto);
     }
 
+    // orderingItem was just resolved from the same cached menu lookup, so the price
+    // lookup below cannot structurally miss - the ?? 0 is just a defensive fallback.
+    const price = (await this.menuProxyService.getPrice(addMenuItemDto.menuItemShortName)) ?? 0;
+
     const alreadyOrderedLinesIndexes = [];
     tableOrder.lines.forEach((line, index) => {
       if (!line.sentForPreparation && line.item._id === orderingItem._id) {
@@ -95,14 +122,15 @@ export class TableOrdersService {
       const orderingLineIndex = alreadyOrderedLinesIndexes[0];
       tableOrder.lines[orderingLineIndex].howMany += addMenuItemDto.howMany;
 
-      return this.normalizePreparations(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
+      return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
     }
 
     const orderingLine: OrderingLine = new OrderingLine();
     orderingLine.item = orderingItem;
     orderingLine.howMany = addMenuItemDto.howMany;
+    orderingLine.price = price;
 
-    return this.normalizePreparations(await this.tableOrderModel.findByIdAndUpdate(
+    return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(
       tableOrder._id,
       { $push: { lines: orderingLine } },
       { returnDocument: 'after' },
@@ -171,7 +199,7 @@ export class TableOrdersService {
       line.paid = true;
     });
 
-    return this.normalizePreparations(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
+    return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
   }
 
   async closeOrder(tableOrderId: string): Promise<TableOrder> {
@@ -189,6 +217,25 @@ export class TableOrdersService {
     tableOrder.billed = new Date();
     await this.tablesService.releaseTable(tableOrder.tableNumber);
 
-    return this.normalizePreparations(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
+    return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
+  }
+
+  async applyDiscount(tableOrderId: string, applyDiscountDto: ApplyDiscountDto): Promise<TableOrder> {
+    const tableOrder: TableOrder = await this.findOne(tableOrderId);
+
+    if (tableOrder.billed !== null) {
+      throw new TableOrderAlreadyBilledException(tableOrder);
+    }
+
+    const existingLineIds = new Set(tableOrder.lines.map((line) => line._id?.toString()));
+    const unknownLineId = applyDiscountDto.lineIds.find((lineId) => !existingLineIds.has(lineId));
+    if (unknownLineId) {
+      throw new TableOrderLineNotFoundException(tableOrder, unknownLineId);
+    }
+
+    tableOrder.discountPercent = applyDiscountDto.percent;
+    tableOrder.discountLineIds = applyDiscountDto.lineIds;
+
+    return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
   }
 }
