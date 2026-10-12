@@ -1,10 +1,10 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBody,
   ApiUnprocessableEntityResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
-  ApiTags, ApiOkResponse, ApiParam,
+  ApiTags, ApiOkResponse, ApiParam, ApiQuery,
 } from '@nestjs/swagger';
 
 import { StartOrderingDto } from '../dto/start-ordering.dto';
@@ -32,9 +32,10 @@ export class TableOrdersController {
   constructor(private readonly tableOrdersService: TableOrdersService) {}
 
   @ApiOkResponse({ type: TableOrder, isArray: true })
+  @ApiQuery({ name: 'billed', required: false, type: Boolean, description: 'false: only open table orders, true: only billed ones, omitted: all' })
   @Get()
-  async listAllTableOrders(): Promise<TableOrder[]> {
-    return this.tableOrdersService.findAll();
+  async listAllTableOrders(@Query('billed') billed?: string): Promise<TableOrder[]> {
+    return this.tableOrdersService.findAll(billed === undefined ? undefined : billed === 'true');
   }
 
   @ApiBody({ type: StartOrderingDto })

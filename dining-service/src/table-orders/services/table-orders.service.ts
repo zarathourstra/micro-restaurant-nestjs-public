@@ -33,8 +33,9 @@ export class TableOrdersService {
     private readonly kitchenProxyService: KitchenProxyService,
   ) {}
 
-  async findAll(): Promise<TableOrder[]> {
-    const tableOrders = await this.tableOrderModel.find().lean();
+  async findAll(billed?: boolean): Promise<TableOrder[]> {
+    const filter = billed === undefined ? {} : { billed: billed ? { $ne: null } : null };
+    const tableOrders = await this.tableOrderModel.find(filter).lean();
     return tableOrders.map((tableOrder) => this.normalizePreparations(tableOrder));
   }
 
