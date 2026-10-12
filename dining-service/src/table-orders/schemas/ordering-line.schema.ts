@@ -21,13 +21,18 @@ export class OrderingLine {
   howMany: number;
 
   @ApiProperty()
+  @Prop({ required: true, min: 0 })
+  price: number;
+
+  @ApiProperty()
   @Prop({ default: false })
   sentForPreparation: boolean;
 
   constructor() {
-    this.paid = false; 
+    this.paid = false;
     this.item = null;
     this.howMany = 0;
+    this.price = 0;
     this.sentForPreparation = false;
   }
 }

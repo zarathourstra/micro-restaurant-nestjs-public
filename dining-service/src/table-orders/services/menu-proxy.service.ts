@@ -42,4 +42,11 @@ export class MenuProxyService {
 
     return orderingItem;
   }
+
+  async getPrice(menuItemShortName: string): Promise<number | null> {
+    await this.retrieveFullMenu();
+    const menuItem: MenuItem = this._menuItemsByShortName[menuItemShortName] || null;
+
+    return menuItem !== null ? menuItem.price : null;
+  }
 }

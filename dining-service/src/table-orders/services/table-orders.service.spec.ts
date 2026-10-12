@@ -107,12 +107,14 @@ describe('TableOrdersService', () => {
       {
         item: mockOrderingItemList[0],
         howMany: 1,
+        price: 1,
         sentForPreparation: false,
         paid:false
       },
       {
         item: mockOrderingItemList[1],
         howMany: 2,
+        price: 1,
         sentForPreparation: false,
         paid:false
       },
@@ -122,12 +124,14 @@ describe('TableOrdersService', () => {
       {
         item: mockOrderingItemList[0],
         howMany: 1,
+        price: 1,
         sentForPreparation: true,
         paid:false
       },
       {
         item: mockOrderingItemList[1],
         howMany: 2,
+        price: 1,
         sentForPreparation: true,
         paid:false
       },
