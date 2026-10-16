@@ -25,6 +25,7 @@ import { TableOrderAlreadyBilledException } from '../exceptions/table-order-alre
 import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
 import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
 import { TableOrderLineNotFoundException } from '../exceptions/table-order-line-not-found.exception';
+import { DiningSocketsService } from './dining-sockets.service';
 
 @Injectable()
 export class TableOrdersService {
@@ -33,6 +34,7 @@ export class TableOrdersService {
     private readonly tablesService: TablesService,
     private readonly menuProxyService: MenuProxyService,
     private readonly kitchenProxyService: KitchenProxyService,
+    private readonly diningSocketsService: DiningSocketsService
   ) {}
 
   async findAll(billed?: boolean): Promise<TableOrder[]> {
@@ -79,15 +81,31 @@ export class TableOrdersService {
     };
   }
 
-  async startOrdering(startOrderingDto: StartOrderingDto): Promise<TableOrder> {
-    const table: Table = await this.tablesService.takeTable(startOrderingDto.tableNumber);
+  async startOrdering(
+    dto: StartOrderingDto,
+  ): Promise<TableOrder> {
+    const table = await this.tablesService.takeTable(
+      dto.tableNumber,
+    );
 
-    const tableOrder: TableOrder = new TableOrder();
+    const tableOrder = new TableOrder();
     tableOrder.tableNumber = table.number;
-    tableOrder.customersCount = startOrderingDto.customersCount;
+    tableOrder.customersCount = dto.customersCount;
     tableOrder.opened = new Date();
+    tableOrder.participants = dto.participants;
 
-    return this.finalizeTableOrder(await this.tableOrderModel.create(tableOrder));
+    const createdOrder = this.finalizeTableOrder(await this.tableOrderModel.create(tableOrder));
+
+    createdOrder.wsContext = dto.groupJoinKey
+      ? this.diningSocketsService.registerMemberOrder(
+          createdOrder._id.toString(),
+          dto.groupJoinKey,
+        )
+      : this.diningSocketsService.registerOriginOrder(
+          createdOrder._id.toString(),
+        );
+
+    return createdOrder;
   }
 
   async addOrderingLineToTableOrder(tableOrderId: string, addMenuItemDto: AddMenuItemDto): Promise<TableOrder> {

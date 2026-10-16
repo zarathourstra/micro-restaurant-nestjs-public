@@ -24,6 +24,14 @@ export class TableOrder {
   customersCount: number;
 
   @ApiProperty()
+  @Prop({required: true})
+  wsContext: {wsKey: string, groupId: string}
+
+  @ApiProperty()
+  @Prop({required: true, type: [{ name: String }], validate: v => v.length >= 1 })
+  participants: {name: string}[]
+
+  @ApiProperty()
   @Prop({ required: true, default: new Date() })
   opened: Date;
 

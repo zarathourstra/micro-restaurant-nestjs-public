@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsPositive } from 'class-validator';
+import { ArrayMinSize, IsArray, IsNotEmpty, IsPositive } from 'class-validator';
 
 export class StartOrderingDto {
   @IsNotEmpty()
@@ -8,4 +8,12 @@ export class StartOrderingDto {
   @IsNotEmpty()
   @IsPositive()
   customersCount: number;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsNotEmpty({ each: true })
+  participants: {name: string}[];
+
+  groupJoinKey: string
+  
 }
