@@ -25,6 +25,8 @@ import { TableOrderLinesNotPayableException } from '../exceptions/table-order-li
 import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
 import { TableOrderLineNotFoundException } from '../exceptions/table-order-line-not-found.exception';
 import { DiningSocketsService } from './dining-sockets.service';
+import {InvalidParticipantException} from "../exceptions/invalid-participant.exception";
+import {InvalidReceiverException} from "../exceptions/invalid-receiver.exception";
 
 @Injectable()
 export class TableOrdersService {
@@ -120,10 +122,18 @@ export class TableOrdersService {
 
   async addOrderingLineToTableOrder(tableOrderId: string, addMenuItemDto: AddMenuItemDto): Promise<TableOrder> {
     const tableOrder: TableOrder = await this.findOne(tableOrderId);
+    const orderer = addMenuItemDto.participant;
 
     if (tableOrder.billed !== null) {
       throw new TableOrderAlreadyBilledException(tableOrder);
     }
+
+    if (orderer === null || orderer.trim() === '' || !tableOrder.participants.some((p) => p.name === orderer)) {
+      throw new InvalidParticipantException(tableOrder);
+    }
+
+    //verif si receiver est vraiment dans la table/groupe (normalement c'est le cas, sécurité)
+    await this.assertReceiver(tableOrder, addMenuItemDto.receiver, addMenuItemDto.receiverTableNumber);
 
     const orderingItem: OrderingItem = await this.menuProxyService.findByShortName(addMenuItemDto.menuItemShortName);
 
@@ -139,16 +149,21 @@ export class TableOrdersService {
     // lookup below cannot structurally miss - the ?? 0 is just a defensive fallback.
     const price = (await this.menuProxyService.getPrice(addMenuItemDto.menuItemShortName)) ?? 0;
 
-    const alreadyOrderedLinesIndexes = [];
-    tableOrder.lines.forEach((line, index) => {
-      if (!line.sentForPreparation && line.item._id === orderingItem._id) {
-        alreadyOrderedLinesIndexes.push(index);
-      }
-    });
+    const receiver = addMenuItemDto.receiver;
+    const receiverTableNumber = addMenuItemDto.receiverTableNumber;
 
-    if (alreadyOrderedLinesIndexes.length > 0) {
-      const orderingLineIndex = alreadyOrderedLinesIndexes[0];
-      tableOrder.lines[orderingLineIndex].howMany += addMenuItemDto.howMany;
+    //merge uniquement les lignes avec meme orderer, receiver et item et pas encore envoyées en cuisine
+    const mergeableLineIndex = tableOrder.lines.findIndex(
+        (line) =>
+            !line.sentForPreparation &&
+            line.item._id === orderingItem._id &&
+            line.orderer === orderer &&
+            line.receiver === receiver &&
+            line.receiverTableNumber === receiverTableNumber,
+    );
+
+    if (mergeableLineIndex !== -1) {
+      tableOrder.lines[mergeableLineIndex].howMany += addMenuItemDto.howMany;
 
       return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
     }
@@ -157,6 +172,9 @@ export class TableOrdersService {
     orderingLine.item = orderingItem;
     orderingLine.howMany = addMenuItemDto.howMany;
     orderingLine.price = price;
+    orderingLine.orderer = orderer;
+    orderingLine.receiver = addMenuItemDto.receiver;
+    orderingLine.receiverTableNumber = receiverTableNumber;
 
     return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(
       tableOrder._id,
@@ -164,6 +182,22 @@ export class TableOrdersService {
       { returnDocument: 'after' },
     ));
   }
+
+  private async assertReceiver(tableOrder: TableOrder, receiver: string, receiverTableNumber: number): Promise<void> {
+    const ownTable = receiverTableNumber === tableOrder.tableNumber;
+    const target = ownTable
+        ? tableOrder
+        : tableOrder.groupId
+            ? await this.tableOrderModel
+                .findOne({ groupId: tableOrder.groupId, billed: null, tableNumber: receiverTableNumber })
+                .lean()
+            : null;
+
+    if (!target || !target.participants.some((p) => p.name === receiver)) {
+      throw new InvalidReceiverException(receiver);
+    }
+  }
+
 
   async manageOrderingLines(tableNumber: number, orderingLines: OrderingLine[]): Promise<OrderingLinesWithPreparations> {
     let orderingLinesToSend: OrderingLine[] = [];
