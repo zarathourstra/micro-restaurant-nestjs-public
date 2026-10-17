@@ -202,24 +202,35 @@ export class TableOrdersService {
 
 
   async manageOrderingLines(tableNumber: number, orderingLines: OrderingLine[]): Promise<OrderingLinesWithPreparations> {
-    let orderingLinesToSend: OrderingLine[] = [];
+    const linesByDestination = new Map<number, OrderingLine[]>();
 
-    const newOrderingLines: OrderingLine[] = orderingLines.map((orderingLine) => {
-      if (!orderingLine.sentForPreparation) {
-        orderingLinesToSend.push(orderingLine);
-        orderingLine.sentForPreparation = true;
+    for (const line of orderingLines) {
+      if (line.sentForPreparation) {
+        continue;
       }
 
-      return orderingLine;
-    });
+      const destination = line.receiverTableNumber ?? tableNumber;
+      const linesForDestination = linesByDestination.get(destination) ?? [];
+      linesForDestination.push(line);
+      linesByDestination.set(destination, linesForDestination);
+    }
 
-    const preparations: PreparationDto[] = await this.kitchenProxyService.sendItemsToCook(tableNumber, orderingLinesToSend);
+    const preparations: PreparationDto[] = [];
+
+    for (const [destination, lines] of linesByDestination) {
+      const created = await this.kitchenProxyService.sendItemsToCook(destination, lines);
+      preparations.push(...created);
+    }
+
+    for (const lines of linesByDestination.values()) {
+      lines.forEach((line) => (line.sentForPreparation = true));
+    }
 
     return {
-      orderingLines: newOrderingLines,
+      orderingLines,
       preparations,
     };
-  };
+  }
 
   async sendItemsForPreparation(tableOrderId: string): Promise<PreparationDto[]> {
     const tableOrder: TableOrder = await this.findOne(tableOrderId);
