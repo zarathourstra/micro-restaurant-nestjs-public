@@ -12,9 +12,9 @@ export class AddMenuItemDto {
   howMany: number;
 
   @IsNotEmpty()
-  participant: string;
+  orderer: string;
 
-  //si cadeau, front enverra participant != receiver, sinon participant == receiver
+  //si cadeau, front enverra orderer != receiver, sinon orderer == receiver
   @IsNotEmpty()
   receiver: string;
 

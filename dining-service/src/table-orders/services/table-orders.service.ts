@@ -122,7 +122,7 @@ export class TableOrdersService {
 
   async addOrderingLineToTableOrder(tableOrderId: string, addMenuItemDto: AddMenuItemDto): Promise<TableOrder> {
     const tableOrder: TableOrder = await this.findOne(tableOrderId);
-    const orderer = addMenuItemDto.participant;
+    const orderer = addMenuItemDto.orderer;
 
     if (tableOrder.billed !== null) {
       throw new TableOrderAlreadyBilledException(tableOrder);
