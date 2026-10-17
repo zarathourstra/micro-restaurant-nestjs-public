@@ -300,4 +300,17 @@ export class TableOrdersService {
 
     return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, { returnDocument: 'after' }));
   }
+
+  async createGroupJoinKey(tableOrderId: string): Promise<{ groupJoinKey: string; expiresAt: Date }> {
+    const tableOrder: TableOrder = await this.findOne(tableOrderId);
+
+    if (tableOrder.billed !== null) {
+      throw new TableOrderAlreadyBilledException(tableOrder);
+    }
+
+    const { joinKey, expiresAt } = this.diningSocketsService.createGroupJoinKey(tableOrder.groupId, tableOrderId);
+
+    return { groupJoinKey: joinKey, expiresAt };
+  }
 }
+

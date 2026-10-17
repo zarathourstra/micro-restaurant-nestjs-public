@@ -14,7 +14,10 @@ export interface OrderSocketContext {
 interface GroupJoinContext {
   groupId: string;
   originTableOrderId: string;
+  expiresAt: Date;
 }
+
+const JOIN_KEY_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class DiningSocketsService {
@@ -117,18 +120,13 @@ export class DiningSocketsService {
     return { wsKey, groupId };
   }
 
-  createGroupJoinKey(
-    groupId: string,
-    originTableOrderId: string,
-  ): string {
+  createGroupJoinKey(groupId: string, originTableOrderId: string): { joinKey: string; expiresAt: Date } {
     const joinKey = this.generateKey();
+    const expiresAt = new Date(Date.now() + JOIN_KEY_TTL_MS);
 
-    this.joinKeys.set(this.hashKey(joinKey), {
-      groupId,
-      originTableOrderId,
-    });
+    this.joinKeys.set(this.hashKey(joinKey), { groupId, originTableOrderId, expiresAt });
 
-    return joinKey;
+    return { joinKey, expiresAt };
   }
 
   registerMemberOrder(tableOrderId: string, groupJoinKey: string): { wsKey: string; groupId: string; } {

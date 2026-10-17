@@ -111,4 +111,13 @@ export class TableOrdersController {
   async applyDiscount(@Param() getTableOrderParams: GetTableOrderParams, @Body() applyDiscountDto: ApplyDiscountDto): Promise<TableOrder> {
     return this.tableOrdersService.applyDiscount(getTableOrderParams.tableOrderId, applyDiscountDto);
   }
+
+  @ApiParam({ name: 'tableOrderId' })
+  @ApiCreatedResponse({ description: 'A single-use group join key has been generated.', schema: { properties: { groupJoinKey: { type: 'string' }, expiresAt: { type: 'string', format: 'date-time' } } } })
+  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already billed' })
+  @Post(':tableOrderId/group-join-key')
+  async createGroupJoinKey(@Param() getTableOrderParams: GetTableOrderParams): Promise<{ groupJoinKey: string; expiresAt: Date }> {
+    return this.tableOrdersService.createGroupJoinKey(getTableOrderParams.tableOrderId);
+  }
 }
