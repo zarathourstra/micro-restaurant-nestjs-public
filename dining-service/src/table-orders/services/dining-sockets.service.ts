@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes, createHash } from 'node:crypto';
 
+import { InvalidGroupJoinKeyException } from '../exceptions/invalid-group-join-key.exception';
+
 export type TableOrderGroupRole = 'origin' | 'member';
 
 export interface OrderSocketContext {
@@ -80,11 +82,25 @@ export class DiningSocketsService {
     }
   }
 
-  registerOriginOrder(tableOrderId: string): {
+  generateGroupId(): string {
+    return randomBytes(16).toString('hex');
+  }
+
+  // Read-only check: lets callers fail early without consuming the key.
+  peekJoinKey(groupJoinKey: string): GroupJoinContext {
+    const joinContext = this.joinKeys.get(this.hashKey(groupJoinKey));
+
+    if (!joinContext) {
+      throw new InvalidGroupJoinKeyException();
+    }
+
+    return joinContext;
+  }
+
+  registerOriginOrder(tableOrderId: string, groupId: string = this.generateGroupId()): {
     wsKey: string;
     groupId: string;
   } {
-    const groupId = randomBytes(16).toString('hex');
     const wsKey = this.generateKey();
 
     const context: OrderSocketContext = {
@@ -115,19 +131,9 @@ export class DiningSocketsService {
     return joinKey;
   }
 
-  registerMemberOrder(
-    tableOrderId: string,
-    groupJoinKey: string,
-  ): {
-    wsKey: string;
-    groupId: string;
-  } {
+  registerMemberOrder(tableOrderId: string, groupJoinKey: string): { wsKey: string; groupId: string; } {
     const joinKeyHash = this.hashKey(groupJoinKey);
-    const joinContext = this.joinKeys.get(joinKeyHash);
-
-    if (!joinContext) {
-      throw new Error('Invalid or already consumed group join key');
-    }
+    const joinContext = this.peekJoinKey(groupJoinKey);
 
     // Consume the token so it cannot authorize another order.
     this.joinKeys.delete(joinKeyHash);
@@ -144,10 +150,7 @@ export class DiningSocketsService {
     this.keys.set(keyHash, context);
     this.orderKeys.set(tableOrderId, keyHash);
 
-    return {
-      wsKey,
-      groupId: joinContext.groupId,
-    };
+    return {wsKey, groupId: joinContext.groupId,};
   }
   
   clear(): void {

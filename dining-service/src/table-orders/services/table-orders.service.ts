@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { Table } from '../../tables/schemas/table.schema';
 import { TableOrder, TableOrderDocument } from '../schemas/table-order.schema';
 import { OrderingItem } from '../schemas/ordering-item.schema';
 import { OrderingLine } from '../schemas/ordering-line.schema';
@@ -81,9 +80,10 @@ export class TableOrdersService {
     };
   }
 
-  async startOrdering(
-    dto: StartOrderingDto,
-  ): Promise<TableOrder> {
+  async startOrdering(dto: StartOrderingDto): Promise<TableOrder> {
+    const groupId = dto.groupJoinKey ? this.diningSocketsService.peekJoinKey(dto.groupJoinKey).groupId
+      : this.diningSocketsService.generateGroupId();
+
     const table = await this.tablesService.takeTable(
       dto.tableNumber,
     );
@@ -93,19 +93,29 @@ export class TableOrdersService {
     tableOrder.customersCount = dto.customersCount;
     tableOrder.opened = new Date();
     tableOrder.participants = dto.participants;
+    tableOrder.groupId = groupId;
 
-    const createdOrder = this.finalizeTableOrder(await this.tableOrderModel.create(tableOrder));
+    let created: TableOrderDocument;
+    try {
+      created = await this.tableOrderModel.create(tableOrder);
+    } catch (error) {
+      await this.tablesService.releaseTable(table.number);
+      throw error;
+    }
 
-    createdOrder.wsContext = dto.groupJoinKey
-      ? this.diningSocketsService.registerMemberOrder(
-          createdOrder._id.toString(),
-          dto.groupJoinKey,
-        )
-      : this.diningSocketsService.registerOriginOrder(
-          createdOrder._id.toString(),
-        );
+    try {
+      const wsContext = dto.groupJoinKey ? this.diningSocketsService.registerMemberOrder(created._id.toString(), dto.groupJoinKey)
+          : this.diningSocketsService.registerOriginOrder(created._id.toString(), groupId);
 
-    return createdOrder;
+      const createdOrder = this.finalizeTableOrder(created);
+      createdOrder.wsContext = wsContext;
+      return createdOrder;
+    } catch (error) {
+      // if the key was consumed by another table in the meantime: undo the table and the order.
+      await this.tableOrderModel.deleteOne({ _id: created._id });
+      await this.tablesService.releaseTable(table.number);
+      throw error;
+    }
   }
 
   async addOrderingLineToTableOrder(tableOrderId: string, addMenuItemDto: AddMenuItemDto): Promise<TableOrder> {
