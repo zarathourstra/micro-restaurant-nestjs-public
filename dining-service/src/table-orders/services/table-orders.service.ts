@@ -11,6 +11,7 @@ import { AddMenuItemDto } from '../dto/add-menu-item.dto';
 import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { ApplyDiscountDto } from '../dto/apply-discount.dto';
 import { PreparationDto } from '../dto/preparation.dto';
+import { GroupMemberDto } from '../dto/group-member.dto';
 
 import { OrderingLinesWithPreparations } from '../interfaces/ordering-lines-with-preparations.interface';
 
@@ -24,6 +25,7 @@ import { TableOrderAlreadyBilledException } from '../exceptions/table-order-alre
 import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
 import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
 import { TableOrderLineNotFoundException } from '../exceptions/table-order-line-not-found.exception';
+import { GroupNotFoundException } from '../exceptions/group-not-found.exception';
 import { DiningSocketsService } from './dining-sockets.service';
 import {InvalidParticipantException} from "../exceptions/invalid-participant.exception";
 import {InvalidReceiverException} from "../exceptions/invalid-receiver.exception";
@@ -311,6 +313,24 @@ export class TableOrdersService {
     const { joinKey, expiresAt } = this.diningSocketsService.createGroupJoinKey(tableOrder.groupId, tableOrderId);
 
     return { groupJoinKey: joinKey, expiresAt };
+  }
+
+  // Open tables of a group with their occupants (billed orders are gone from the group).
+  async findGroupMembers(groupId: string): Promise<GroupMemberDto[]> {
+    const groupOrders = await this.tableOrderModel
+      .find({ groupId, billed: null })
+      .sort({ tableNumber: 1 })
+      .select('tableNumber participants')
+      .lean();
+
+    if (groupOrders.length === 0) {
+      throw new GroupNotFoundException(groupId);
+    }
+
+    return groupOrders.map((order) => ({
+      tableNumber: order.tableNumber,
+      participants: order.participants.map((p) => ({ name: p.name })),
+    }));
   }
 }
 

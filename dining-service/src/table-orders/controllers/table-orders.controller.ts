@@ -12,7 +12,11 @@ import { AddMenuItemDto } from '../dto/add-menu-item.dto';
 import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { ApplyDiscountDto } from '../dto/apply-discount.dto';
 
+import { GroupMemberDto } from '../dto/group-member.dto';
+
 import { GetTableOrderParams } from '../params/get-table-order.params';
+import { GetGroupParams } from '../params/get-group.params';
+import { GroupNotFoundException } from '../exceptions/group-not-found.exception';
 
 import { TableOrder } from '../schemas/table-order.schema';
 
@@ -47,6 +51,14 @@ export class TableOrdersController {
   @Post()
   async openTable(@Body() startOrderingDto: StartOrderingDto): Promise<TableOrder> {
     return await this.tableOrdersService.startOrdering(startOrderingDto);
+  }
+
+  @ApiParam({ name: 'groupId' })
+  @ApiOkResponse({ type: GroupMemberDto, isArray: true, description: 'Open tables of the group with their participants.' })
+  @ApiNotFoundResponse({ type: GroupNotFoundException, description: 'Group not found' })
+  @Get('groups/:groupId')
+  async getGroupMembers(@Param() getGroupParams: GetGroupParams): Promise<GroupMemberDto[]> {
+    return this.tableOrdersService.findGroupMembers(getGroupParams.groupId);
   }
 
   @ApiParam({ name: 'tableOrderId' })
