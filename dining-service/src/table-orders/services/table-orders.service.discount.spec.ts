@@ -12,6 +12,7 @@ import { OrderingLine } from '../schemas/ordering-line.schema';
 
 import { TableOrderAlreadyBilledException } from '../exceptions/table-order-already-billed.exception';
 import { TableOrderLineNotFoundException } from '../exceptions/table-order-line-not-found.exception';
+import { rewardForScore } from '../constants/reward-tiers';
 
 describe('TableOrdersService - discount & totals', () => {
   let service: TableOrdersService;
@@ -71,6 +72,12 @@ describe('TableOrdersService - discount & totals', () => {
 
   function mockUpdateReturns(tableOrder: TableOrder): void {
     jest.spyOn(model, 'findByIdAndUpdate').mockResolvedValueOnce(tableOrder as any);
+  }
+
+  function mockFindOneRepeatedly(tableOrder: TableOrder): void {
+    jest.spyOn(model, 'findOne').mockReturnValue({
+      lean: jest.fn().mockResolvedValue(tableOrder),
+    } as any);
   }
 
   describe('computeTotals (via findOne)', () => {
@@ -163,6 +170,68 @@ describe('TableOrdersService - discount & totals', () => {
       mockFindOne(tableOrder);
 
       await expect(service.applyDiscount('table order id', { percent: 10, lineIds: [] }))
+        .rejects.toThrow(TableOrderAlreadyBilledException);
+    });
+  });
+
+  describe('rewardForScore', () => {
+    it('maps winning scores to the right tier', () => {
+      expect(rewardForScore(24)).toEqual({ minScore: 24, discountPercent: 15, lineCount: 3 });
+      expect(rewardForScore(18)).toEqual({ minScore: 18, discountPercent: 10, lineCount: 2 });
+      expect(rewardForScore(12)).toEqual({ minScore: 12, discountPercent: 5, lineCount: 1 });
+    });
+
+    it('returns null below the lowest threshold', () => {
+      expect(rewardForScore(11)).toBeNull();
+      expect(rewardForScore(0)).toBeNull();
+    });
+  });
+
+  describe('claimBonus', () => {
+    it('discounts exactly the N cheapest unpaid lines for a winning score, ignoring already-paid ones', async () => {
+      const tableOrder = makeTableOrder({
+        lines: [
+          makeLine({ _id: 'line A', price: 10, howMany: 1 }),
+          makeLine({ _id: 'line B', price: 2, howMany: 1 }),
+          makeLine({ _id: 'line C', price: 5, howMany: 1 }),
+          makeLine({ _id: 'line D', price: 1, howMany: 1 }),
+          makeLine({ _id: 'line E', price: 0.5, howMany: 1, paid: true }),
+        ],
+      });
+      mockFindOneRepeatedly(tableOrder);
+      mockUpdateReturns({ ...tableOrder, discountPercent: 10, discountLineIds: ['line D', 'line B'] });
+
+      await service.claimBonus('table order id', { score: 18 });
+
+      // tier for score 18 is 10% off the 2 cheapest unpaid lines -> D (1) and B (2), never the paid E (0.5)
+      expect(model.findByIdAndUpdate).toHaveBeenCalledWith(
+        'table order id',
+        expect.objectContaining({ discountPercent: 10, discountLineIds: ['line D', 'line B'] }),
+        { returnDocument: 'after' },
+      );
+    });
+
+    it('leaves the table order unchanged on a losing score', async () => {
+      const tableOrder = makeTableOrder({
+        lines: [makeLine({ _id: 'line A', price: 10, howMany: 1 })],
+        discountPercent: 5,
+        discountLineIds: ['line A'],
+      });
+      mockFindOneRepeatedly(tableOrder);
+      const updateSpy = jest.spyOn(model, 'findByIdAndUpdate');
+
+      const result = await service.claimBonus('table order id', { score: 5 });
+
+      expect(updateSpy).not.toHaveBeenCalled();
+      expect(result.discountPercent).toBe(5);
+      expect(result.discountLineIds).toEqual(['line A']);
+    });
+
+    it('rejects claiming a bonus on an already-billed order', async () => {
+      const tableOrder = makeTableOrder({ billed: new Date() });
+      mockFindOneRepeatedly(tableOrder);
+
+      await expect(service.claimBonus('table order id', { score: 24 }))
         .rejects.toThrow(TableOrderAlreadyBilledException);
     });
   });
