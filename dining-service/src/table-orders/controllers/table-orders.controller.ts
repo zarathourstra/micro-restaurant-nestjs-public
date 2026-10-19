@@ -11,6 +11,7 @@ import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
 import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { ApplyDiscountDto } from '../dto/apply-discount.dto';
+import { ClaimBonusDto } from '../dto/claim-bonus.dto';
 
 import { GetTableOrderParams } from '../params/get-table-order.params';
 
@@ -110,5 +111,16 @@ export class TableOrdersController {
   @Post(':tableOrderId/discount')
   async applyDiscount(@Param() getTableOrderParams: GetTableOrderParams, @Body() applyDiscountDto: ApplyDiscountDto): Promise<TableOrder> {
     return this.tableOrdersService.applyDiscount(getTableOrderParams.tableOrderId, applyDiscountDto);
+  }
+
+  @ApiParam({ name: 'tableOrderId' })
+  @ApiBody({ type: ClaimBonusDto })
+  @ApiOkResponse({ type: TableOrder, description: 'The bonus minigame reward has been applied, if the score was high enough.' })
+  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
+  @HttpCode(200)
+  @Post(':tableOrderId/bonus')
+  async claimBonus(@Param() getTableOrderParams: GetTableOrderParams, @Body() claimBonusDto: ClaimBonusDto): Promise<TableOrder> {
+    return this.tableOrdersService.claimBonus(getTableOrderParams.tableOrderId, claimBonusDto);
   }
 }
