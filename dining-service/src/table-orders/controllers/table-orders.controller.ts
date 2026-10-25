@@ -15,6 +15,7 @@ import { JoinRequestDto } from '../dto/join-request.dto';
 import { JoinRequestAnswerDto } from '../dto/join-request-answer.dto';
 
 import { GroupMemberDto } from '../dto/group-member.dto';
+import { ClaimBonusDto } from '../dto/claim-bonus.dto';
 
 import { GetTableOrderParams } from '../params/get-table-order.params';
 import { GetGroupParams } from '../params/get-group.params';
@@ -145,5 +146,13 @@ export class TableOrdersController {
   @Post(':tableOrderId/join-requests/answer')
   async answerJoinRequest(@Param() getTableOrderParams: GetTableOrderParams, @Body() joinRequestAnswerDto: JoinRequestAnswerDto): Promise<void> {
     return this.tableOrdersService.answerJoinRequest(getTableOrderParams.tableOrderId, joinRequestAnswerDto);
+  @ApiBody({ type: ClaimBonusDto })
+  @ApiOkResponse({ type: TableOrder, description: 'The bonus minigame reward has been applied, if the score was high enough.' })
+  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
+  @HttpCode(200)
+  @Post(':tableOrderId/bonus')
+  async claimBonus(@Param() getTableOrderParams: GetTableOrderParams, @Body() claimBonusDto: ClaimBonusDto): Promise<TableOrder> {
+    return this.tableOrdersService.claimBonus(getTableOrderParams.tableOrderId, claimBonusDto);
   }
 }
