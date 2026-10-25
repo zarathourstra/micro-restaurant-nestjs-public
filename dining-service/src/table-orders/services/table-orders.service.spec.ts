@@ -6,6 +6,8 @@ import { TableOrdersService } from './table-orders.service';
 import { MenuProxyService } from './menu-proxy.service';
 import { KitchenProxyService } from './kitchen-proxy.service';
 import { TablesService } from '../../tables/services/tables.service';
+import { DiningSocketsService } from './dining-sockets.service';
+import { TableOrdersSocketGateway } from '../controllers/table-orders.socket.gateway';
 
 import { TableOrder } from '../schemas/table-order.schema';
 import { OrderingItem } from '../schemas/ordering-item.schema';
@@ -242,6 +244,26 @@ describe('TableOrdersService', () => {
           provide: KitchenProxyService,
           useValue: {
             sendItemsToCook: jest.fn(),
+          },
+        },
+        {
+          provide: DiningSocketsService,
+          useValue: {
+            generateGroupId: jest.fn().mockReturnValue('group id'),
+            registerOriginOrder: jest.fn().mockReturnValue({ wsKey: 'ws key', groupId: 'group id' }),
+            moveOrderToGroup: jest.fn(),
+            createJoinRequest: jest.fn(),
+            getJoinRequest: jest.fn(),
+            deleteJoinRequest: jest.fn(),
+          },
+        },
+        {
+          provide: TableOrdersSocketGateway,
+          useValue: {
+            emitJoinRequested: jest.fn(),
+            emitJoinResult: jest.fn(),
+            emitMemberJoined: jest.fn(),
+            emitGroupUpdated: jest.fn(),
           },
         },
       ],

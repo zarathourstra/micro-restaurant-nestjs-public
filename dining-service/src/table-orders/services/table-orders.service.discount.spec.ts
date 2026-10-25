@@ -6,6 +6,8 @@ import { TableOrdersService } from './table-orders.service';
 import { MenuProxyService } from './menu-proxy.service';
 import { KitchenProxyService } from './kitchen-proxy.service';
 import { TablesService } from '../../tables/services/tables.service';
+import { DiningSocketsService } from './dining-sockets.service';
+import { TableOrdersSocketGateway } from '../controllers/table-orders.socket.gateway';
 
 import { TableOrder } from '../schemas/table-order.schema';
 import { OrderingLine } from '../schemas/ordering-line.schema';
@@ -57,6 +59,8 @@ describe('TableOrdersService - discount & totals', () => {
         { provide: TablesService, useValue: { takeTable: jest.fn(), releaseTable: jest.fn() } },
         { provide: MenuProxyService, useValue: { findByShortName: jest.fn(), getPrice: jest.fn() } },
         { provide: KitchenProxyService, useValue: { sendItemsToCook: jest.fn() } },
+        { provide: DiningSocketsService, useValue: { generateGroupId: jest.fn(), registerOriginOrder: jest.fn(), moveOrderToGroup: jest.fn(), createJoinRequest: jest.fn(), getJoinRequest: jest.fn(), deleteJoinRequest: jest.fn() } },
+        { provide: TableOrdersSocketGateway, useValue: { emitJoinRequested: jest.fn(), emitJoinResult: jest.fn(), emitMemberJoined: jest.fn(), emitGroupUpdated: jest.fn() } },
       ],
     }).compile();
 

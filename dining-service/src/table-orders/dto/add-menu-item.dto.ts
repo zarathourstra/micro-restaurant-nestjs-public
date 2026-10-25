@@ -1,4 +1,4 @@
-import { IsMongoId, IsNotEmpty, IsPositive } from 'class-validator';
+import {IsInt, IsMongoId, IsNotEmpty, IsPositive, Min} from 'class-validator';
 
 export class AddMenuItemDto {
   @IsMongoId()
@@ -10,4 +10,15 @@ export class AddMenuItemDto {
   @IsNotEmpty()
   @IsPositive()
   howMany: number;
+
+  @IsNotEmpty()
+  orderer: string;
+
+  //si cadeau, front enverra orderer != receiver, sinon orderer == receiver
+  @IsNotEmpty()
+  receiver: string;
+
+  @IsInt()
+  @Min(0)
+  receiverTableNumber: number;
 }

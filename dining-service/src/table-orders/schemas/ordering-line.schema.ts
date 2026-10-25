@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { ApiProperty } from '@nestjs/swagger';
-
 import { OrderingItem } from './ordering-item.schema';
 
 @Schema()
@@ -17,7 +16,7 @@ export class OrderingLine {
   item: OrderingItem;
 
   @ApiProperty()
-  @Prop({ required: true, min: 0 })
+  @Prop({ required: true, min: 1 })
   howMany: number;
 
   @ApiProperty()
@@ -28,12 +27,27 @@ export class OrderingLine {
   @Prop({ default: false })
   sentForPreparation: boolean;
 
+  @ApiProperty()
+  @Prop({ required: true })
+  orderer: string;
+
+  @ApiProperty()
+  @Prop({ required: true })
+  receiver: string;
+
+  @ApiProperty()
+  @Prop({ required: true, min: 1})
+  receiverTableNumber: number;
+
   constructor() {
     this.paid = false;
     this.item = null;
     this.howMany = 0;
     this.price = 0;
     this.sentForPreparation = false;
+    this.orderer = null;
+    this.receiver = null;
+    this.receiverTableNumber = null;
   }
 }
 

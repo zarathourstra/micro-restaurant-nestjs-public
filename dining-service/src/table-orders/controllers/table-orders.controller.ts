@@ -4,16 +4,22 @@ import {
   ApiUnprocessableEntityResponse,
   ApiCreatedResponse,
   ApiNotFoundResponse,
-  ApiTags, ApiOkResponse, ApiParam, ApiQuery,
+  ApiTags, ApiOkResponse, ApiParam, ApiQuery, ApiNoContentResponse,
 } from '@nestjs/swagger';
 
 import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
 import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { ApplyDiscountDto } from '../dto/apply-discount.dto';
+import { JoinRequestDto } from '../dto/join-request.dto';
+import { JoinRequestAnswerDto } from '../dto/join-request-answer.dto';
+
+import { GroupMemberDto } from '../dto/group-member.dto';
 import { ClaimBonusDto } from '../dto/claim-bonus.dto';
 
 import { GetTableOrderParams } from '../params/get-table-order.params';
+import { GetGroupParams } from '../params/get-group.params';
+import { GroupNotFoundException } from '../exceptions/group-not-found.exception';
 
 import { TableOrder } from '../schemas/table-order.schema';
 
@@ -48,6 +54,14 @@ export class TableOrdersController {
   @Post()
   async openTable(@Body() startOrderingDto: StartOrderingDto): Promise<TableOrder> {
     return await this.tableOrdersService.startOrdering(startOrderingDto);
+  }
+
+  @ApiParam({ name: 'groupId' })
+  @ApiOkResponse({ type: GroupMemberDto, isArray: true, description: 'Open tables of the group with their participants.' })
+  @ApiNotFoundResponse({ type: GroupNotFoundException, description: 'Group not found' })
+  @Get('groups/:groupId')
+  async getGroupMembers(@Param() getGroupParams: GetGroupParams): Promise<GroupMemberDto[]> {
+    return this.tableOrdersService.findGroupMembers(getGroupParams.groupId);
   }
 
   @ApiParam({ name: 'tableOrderId' })
@@ -114,6 +128,24 @@ export class TableOrdersController {
   }
 
   @ApiParam({ name: 'tableOrderId' })
+  @ApiBody({ type: JoinRequestDto })
+  @ApiCreatedResponse({ description: 'A request to join the target table group has been sent to that table.', schema: { properties: { requestId: { type: 'string' }, expiresAt: { type: 'string', format: 'date-time' } } } })
+  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
+  @HttpCode(200)
+  @Post(':tableOrderId/join-requests')
+  async requestToJoinGroup(@Param() getTableOrderParams: GetTableOrderParams, @Body() joinRequestDto: JoinRequestDto): Promise<{ requestId: string; expiresAt: Date }> {
+    return this.tableOrdersService.requestToJoinGroup(getTableOrderParams.tableOrderId, joinRequestDto);
+  }
+
+  @ApiParam({ name: 'tableOrderId' })
+  @ApiBody({ type: JoinRequestAnswerDto })
+  @ApiNoContentResponse({ description: 'The answer to the join request has been recorded and the requesting table notified.' })
+  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @HttpCode(204)
+  @Post(':tableOrderId/join-requests/answer')
+  async answerJoinRequest(@Param() getTableOrderParams: GetTableOrderParams, @Body() joinRequestAnswerDto: JoinRequestAnswerDto): Promise<void> {
+    return this.tableOrdersService.answerJoinRequest(getTableOrderParams.tableOrderId, joinRequestAnswerDto);
   @ApiBody({ type: ClaimBonusDto })
   @ApiOkResponse({ type: TableOrder, description: 'The bonus minigame reward has been applied, if the score was high enough.' })
   @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })

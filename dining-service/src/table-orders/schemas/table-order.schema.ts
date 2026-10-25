@@ -24,6 +24,10 @@ export class TableOrder {
   customersCount: number;
 
   @ApiProperty()
+  @Prop({required: true, type: [{ name: String }], validate: v => v.length >= 1 })
+  participants: {name: string}[]
+
+  @ApiProperty()
   @Prop({ required: true, default: new Date() })
   opened: Date;
 
@@ -46,6 +50,14 @@ export class TableOrder {
   @ApiProperty({ required: false, isArray: true })
   @Prop({ type: [String], default: [] })
   discountLineIds?: string[];
+
+  @ApiProperty({ required: false, nullable: true })
+  @Prop({ type: String, default: null, index: true })
+  groupId?: string | null;
+
+  // Returned by startOrdering() only - not persisted (no @Prop). wsKey is a secret kept in DiningSocketsService.
+  @ApiProperty({ required: false })
+  wsContext?: { wsKey: string; groupId: string };
 
   // Computed on read in TableOrdersService.computeTotals() - not persisted (no @Prop).
   @ApiProperty({ required: false })

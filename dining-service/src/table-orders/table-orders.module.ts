@@ -8,8 +8,10 @@ import { TableOrdersController } from './controllers/table-orders.controller';
 import { TableOrdersService } from './services/table-orders.service';
 import { MenuProxyService } from './services/menu-proxy.service';
 import { KitchenProxyService } from './services/kitchen-proxy.service';
+import { DiningSocketsService } from './services/dining-sockets.service';
 
 import { TablesModule } from '../tables/tables.module';
+import {TableOrdersSocketGateway} from "./controllers/table-orders.socket.gateway";
 
 @Global()
 @Module({
@@ -23,6 +25,8 @@ import { TablesModule } from '../tables/tables.module';
     TableOrdersService,
     MenuProxyService,
     KitchenProxyService,
+    DiningSocketsService,
+    TableOrdersSocketGateway,
   ],
 })
 export class TableOrdersModule {}
