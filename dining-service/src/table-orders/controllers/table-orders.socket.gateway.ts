@@ -1,96 +1,99 @@
-import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  MessageBody,
-  ConnectedSocket,
-} from '@nestjs/websockets';
+import {WebSocketGateway, WebSocketServer, OnGatewayConnection} from '@nestjs/websockets';
+import { DiningSocketsService} from "../services/dining-sockets.service";
 import { Server, Socket } from 'socket.io';
+
+export interface GroupParticipant {
+  name: string;
+}
+
+export interface JoinRequestedData {
+  requestId: string;
+  requestingTableNumber: number;
+  customersCount: number;
+  participants: GroupParticipant[];
+  expiresAt: Date;
+}
+
+export interface JoinResultData {
+  requestId: string;
+  decision: 'accept' | 'reject';
+  groupId?: string;
+  reason?: string;
+}
+
+export interface MemberJoinedData {
+  groupId: string;
+  orderId: string;
+  tableNumber: number;
+  participants: GroupParticipant[];
+  joinedAt: Date;
+}
+
+export interface GroupMember {
+  tableNumber: number;
+  orderId: string;
+  participants: GroupParticipant[];
+}
+
+export interface GroupUpdatedData {
+  groupId: string;
+  members: GroupMember[];
+}
+
+export const orderRoom = (tableOrderId: string): string => `order:${tableOrderId}`;
+export const groupRoom = (groupId: string): string => `group:${groupId}`;
 
 @WebSocketGateway({
   namespace: 'dining',
 })
-export class TableOrdersSocketGateway {
+export class TableOrdersSocketGateway implements OnGatewayConnection {
+  constructor(
+      private readonly diningSocketsService : DiningSocketsService,
+  ) {}
+
   @WebSocketServer()
   server: Server;
 
-  // Client -> server: origin accepts or rejects a join request
-  @SubscribeMessage('table-group.join-response')
-  handleJoinResponse(
-    @MessageBody() data: {
-      requestId: string;
-      decision: 'accept' | 'reject';
-    },
-    @ConnectedSocket() client: Socket,
-  ) {
-    // TODO: authenticate/authorize origin
-    // TODO: validate request and decision
-    // TODO: persist the decision through a service
-    // TODO: notify requester with table-group.join-result
+  handleConnection(client: Socket) {
+    const context = this.diningSocketsService.validateKey(client.handshake.auth?.key);
+
+    if (!context) {
+      client.disconnect();
+      return;
+    }
+
+    client.data.context = context;
+    client.join(orderRoom(context.tableOrderId));
+    client.join(groupRoom(context.groupId));
   }
 
-  // Server -> origin: a table requests to join its group
-  emitJoinRequested(
-    originRoom: string,
-    data: {
-      requestId: string;
-      requestingTableNumber: number;
-      customersCount: number;
-      participants: { name: string }[];
-      expiresAt: Date;
-    },
-  ) {
+  moveGroupRoom(tableOrderId: string, oldGroupId: string, newGroupId: string) {
+    this.server.in(orderRoom(tableOrderId)).socketsLeave(groupRoom(oldGroupId));
+    this.server.in(orderRoom(tableOrderId)).socketsJoin(groupRoom(newGroupId));
+  }
+
+  emitJoinRequested(originRoom: string, data: JoinRequestedData) {
     this.server.to(originRoom).emit(
       'table-group.join-requested',
       data,
     );
   }
 
-  // Server -> requester: join request was accepted or rejected
-  emitJoinResult(
-    requesterRoom: string,
-    data: {
-      requestId: string;
-      decision: 'accept' | 'reject';
-      groupId?: string;
-      reason?: string;
-    },
-  ) {
+  emitJoinResult(requesterRoom: string, data: JoinResultData) {
     this.server.to(requesterRoom).emit(
       'table-group.join-result',
       data,
     );
   }
 
-  // Server -> origin: a member order has been created successfully
-  emitMemberJoined(
-    originRoom: string,
-    data: {
-      groupId: string;
-      orderId: string;
-      tableNumber: number;
-      participants: { name: string }[];
-      joinedAt: Date;
-    },
-  ) {
+  emitMemberJoined(originRoom: string, data: MemberJoinedData) {
     this.server.to(originRoom).emit(
       'table-group.member-joined',
       data,
     );
   }
 
-  // Server -> group members: group membership has changed
-  emitGroupUpdated(
-    groupRoom: string,
-    data: {
-      groupId: string;
-      members: {
-        tableNumber: number;
-        orderId: string;
-        participants: { name: string }[];
-      }[];
-    },
-  ) {
+  emitGroupUpdated(groupRoom: string, data: GroupUpdatedData) {
     this.server.to(groupRoom).emit(
       'table-group.updated',
       data,

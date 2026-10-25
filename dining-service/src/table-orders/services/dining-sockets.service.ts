@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { randomBytes, createHash } from 'node:crypto';
 
-import { InvalidGroupJoinKeyException } from '../exceptions/invalid-group-join-key.exception';
+import { JoinRequestAlreadyPendingException } from '../exceptions/join-request-already-pending.exception';
 
 export type TableOrderGroupRole = 'origin' | 'member';
 
@@ -11,23 +11,22 @@ export interface OrderSocketContext {
   role: TableOrderGroupRole;
 }
 
-interface GroupJoinContext {
+export interface PendingJoinRequest {
+  requestId: string;
   groupId: string;
   originTableOrderId: string;
+  memberTableOrderId: string;
   expiresAt: Date;
 }
-
-const JOIN_KEY_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class DiningSocketsService {
   // Hash -> authenticated order context
   private readonly keys = new Map<string, OrderSocketContext>();
 
-  private readonly joinKeys = new Map<string, GroupJoinContext>();
-
   // Order ID -> key hash
   private readonly orderKeys = new Map<string, string>();
+  private readonly pendingJoinRequests = new Map<string, PendingJoinRequest>();
 
   private hashKey(key: string): string {
     return createHash('sha256').update(key).digest('hex');
@@ -35,6 +34,43 @@ export class DiningSocketsService {
 
   generateKey(): string {
     return randomBytes(32).toString('hex');
+  }
+
+  createJoinRequest(originTableOrderId: string, memberTableOrderId: string, groupId: string): PendingJoinRequest {
+    //purge ce qui est déjà expiré dans la map de requests
+    const now = new Date();
+    for (const [id, request] of this.pendingJoinRequests) {
+      if (request.expiresAt <= now) {
+        this.pendingJoinRequests.delete(id);
+      }
+    }
+    const alreadyPending = Array.from(this.pendingJoinRequests.values()).some(
+        (request) =>
+            request.memberTableOrderId === memberTableOrderId &&
+            request.originTableOrderId === originTableOrderId,
+    );
+    if(alreadyPending) {
+      throw new JoinRequestAlreadyPendingException();
+    }
+    const requestId = randomBytes(16).toString('hex');
+    const JOIN_REQUEST_TTL_MS = 2 * 60 * 1000;
+    const expiresAt = new Date(Date.now() + JOIN_REQUEST_TTL_MS);
+    const request : PendingJoinRequest = {requestId, groupId, originTableOrderId, memberTableOrderId, expiresAt };
+    this.pendingJoinRequests.set(requestId, request);
+    return request;
+  }
+
+  getJoinRequest(requestId: string): PendingJoinRequest | undefined {
+    const request = this.pendingJoinRequests.get(requestId);
+    if (request && request.expiresAt < new Date()) {
+      this.pendingJoinRequests.delete(requestId);
+      return undefined;
+    }
+    return request;
+  }
+
+  deleteJoinRequest(requestId: string): void {
+    this.pendingJoinRequests.delete(requestId);
   }
 
   registerOrder(context: OrderSocketContext): string {
@@ -89,17 +125,6 @@ export class DiningSocketsService {
     return randomBytes(16).toString('hex');
   }
 
-  // Read-only check: lets callers fail early without consuming the key.
-  peekJoinKey(groupJoinKey: string): GroupJoinContext {
-    const joinContext = this.joinKeys.get(this.hashKey(groupJoinKey));
-
-    if (!joinContext) {
-      throw new InvalidGroupJoinKeyException();
-    }
-
-    return joinContext;
-  }
-
   registerOriginOrder(tableOrderId: string, groupId: string = this.generateGroupId()): {
     wsKey: string;
     groupId: string;
@@ -119,38 +144,17 @@ export class DiningSocketsService {
 
     return { wsKey, groupId };
   }
-
-  createGroupJoinKey(groupId: string, originTableOrderId: string): { joinKey: string; expiresAt: Date } {
-    const joinKey = this.generateKey();
-    const expiresAt = new Date(Date.now() + JOIN_KEY_TTL_MS);
-
-    this.joinKeys.set(this.hashKey(joinKey), { groupId, originTableOrderId, expiresAt });
-
-    return { joinKey, expiresAt };
-  }
-
-  registerMemberOrder(tableOrderId: string, groupJoinKey: string): { wsKey: string; groupId: string; } {
-    const joinKeyHash = this.hashKey(groupJoinKey);
-    const joinContext = this.peekJoinKey(groupJoinKey);
-
-    // Consume the token so it cannot authorize another order.
-    this.joinKeys.delete(joinKeyHash);
-
-    const wsKey = this.generateKey();
-    const keyHash = this.hashKey(wsKey);
-
-    const context: OrderSocketContext = {
-      tableOrderId,
-      groupId: joinContext.groupId,
-      role: 'member',
-    };
-
-    this.keys.set(keyHash, context);
-    this.orderKeys.set(tableOrderId, keyHash);
-
-    return {wsKey, groupId: joinContext.groupId,};
-  }
   
+  moveOrderToGroup(tableOrderId: string, groupId: string): void {
+    const context = this.getOrderSocketContext(tableOrderId);
+
+    if (context) {
+      context.groupId = groupId;
+      context.role = 'member';
+    }
+  }
+
+
   clear(): void {
     this.keys.clear();
     this.orderKeys.clear();

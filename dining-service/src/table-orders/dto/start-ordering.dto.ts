@@ -1,4 +1,4 @@
-import {ArrayMinSize, IsArray, IsNotEmpty, IsOptional, IsPositive, IsString} from 'class-validator';
+import {ArrayMinSize, IsArray, IsNotEmpty, IsPositive} from 'class-validator';
 
 export class StartOrderingDto {
   @IsNotEmpty()
@@ -13,8 +13,4 @@ export class StartOrderingDto {
   @ArrayMinSize(1)
   @IsNotEmpty({ each: true })
   participants: {name: string}[];
-
-  @IsOptional()
-  @IsString()
-  groupJoinKey?: string
 }

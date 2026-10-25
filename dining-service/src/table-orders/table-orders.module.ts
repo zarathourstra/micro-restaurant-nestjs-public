@@ -11,6 +11,7 @@ import { KitchenProxyService } from './services/kitchen-proxy.service';
 import { DiningSocketsService } from './services/dining-sockets.service';
 
 import { TablesModule } from '../tables/tables.module';
+import {TableOrdersSocketGateway} from "./controllers/table-orders.socket.gateway";
 
 @Global()
 @Module({
@@ -25,6 +26,7 @@ import { TablesModule } from '../tables/tables.module';
     MenuProxyService,
     KitchenProxyService,
     DiningSocketsService,
+    TableOrdersSocketGateway,
   ],
 })
 export class TableOrdersModule {}
