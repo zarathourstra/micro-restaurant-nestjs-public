@@ -26,12 +26,17 @@ export class TableWithOrderDto {
   // could also be complemented with more information on the order itself, here as a MVP, we only add the id
   // forcing for a callback to the API to get the information
 
+  @ApiProperty({ required: false, nullable: true })
+  @IsOptional()
+  groupOriginTableNumber: number | null; // number of the table whose group this table joined, null if none
+
   static tableWithOrderDtoFactory(table: Table, tableOrder: TableOrder): TableWithOrderDto {
     const tableWithOrderDto: TableWithOrderDto = new TableWithOrderDto();
     tableWithOrderDto._id = table._id;
     tableWithOrderDto.number = table.number;
     tableWithOrderDto.taken = table.taken;
     tableWithOrderDto.tableOrderId = tableOrder?._id || null;
+    tableWithOrderDto.groupOriginTableNumber = tableOrder?.groupOriginTableNumber ?? null;
 
     return tableWithOrderDto;
   }

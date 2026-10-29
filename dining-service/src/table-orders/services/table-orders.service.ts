@@ -124,7 +124,8 @@ export class TableOrdersService {
 
     const wsContext = this.diningSocketsService.registerOriginOrder(created._id.toString(), groupId);
 
-    const createdOrder = this.finalizeTableOrder(created);
+    // toObject(): a Mongoose document serializes schema paths only, which would drop wsContext and totals.
+    const createdOrder = this.finalizeTableOrder(created.toObject() as TableOrder);
     createdOrder.wsContext = wsContext;
     return createdOrder;
   }
@@ -389,7 +390,7 @@ export class TableOrdersService {
       if (requester.billed !== null) {
         throw new TableOrderAlreadyBilledException(requester);
       }
-      const updatedRequester = await this.tableOrderModel.findByIdAndUpdate(requesterId, {groupId: target.groupId},
+      const updatedRequester = await this.tableOrderModel.findByIdAndUpdate(requesterId, {groupId: target.groupId, groupOriginTableNumber: target.tableNumber},
           { returnDocument: 'after' }).lean();
       if (!updatedRequester) throw new TableOrderIdNotFoundException(requesterId);
       this.diningSocketsService.deleteJoinRequest(dto.requestId);
