@@ -10,9 +10,12 @@ import { StartOrderingDto } from '../dto/start-ordering.dto';
 import { AddMenuItemDto } from '../dto/add-menu-item.dto';
 import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { ApplyDiscountDto } from '../dto/apply-discount.dto';
+import { ClaimBonusDto } from '../dto/claim-bonus.dto';
 import { PreparationDto } from '../dto/preparation.dto';
 import { GroupMemberDto } from '../dto/group-member.dto';
 import { GroupMember, GroupUpdatedData} from "../controllers/table-orders.socket.gateway";
+
+import { rewardForScore } from '../constants/reward-tiers';
 
 import { OrderingLinesWithPreparations } from '../interfaces/ordering-lines-with-preparations.interface';
 
@@ -432,5 +435,24 @@ export class TableOrdersService {
         reason: dto.reason
       })
     }
+  }
+
+  // The backend owns the score -> reward mapping and picks which lines get discounted
+  // (cheapest-first) so a client can never dictate the percent or cherry-pick pricey lines.
+  async claimBonus(tableOrderId: string, claimBonusDto: ClaimBonusDto): Promise<TableOrder> {
+    const tableOrder: TableOrder = await this.findOne(tableOrderId);
+
+    const tier = rewardForScore(claimBonusDto.score);
+    if (tier === null) {
+      return tableOrder;
+    }
+
+    const lineIds = (tableOrder.lines ?? [])
+      .filter((line) => !line.paid)
+      .sort((a, b) => a.price * a.howMany - b.price * b.howMany)
+      .slice(0, tier.lineCount)
+      .map((line) => line._id?.toString());
+
+    return this.applyDiscount(tableOrderId, { percent: tier.discountPercent, lineIds });
   }
 }
