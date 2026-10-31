@@ -55,6 +55,11 @@ export class TableOrder {
   @Prop({ type: String, default: null, index: true })
   groupId?: string | null;
 
+  // Number of the table whose group this order joined; null for an order that opened its own group.
+  @ApiProperty({ required: false, nullable: true })
+  @Prop({ type: Number, default: null })
+  groupOriginTableNumber?: number | null;
+
   // Returned by startOrdering() only - not persisted (no @Prop). wsKey is a secret kept in DiningSocketsService.
   @ApiProperty({ required: false })
   wsContext?: { wsKey: string; groupId: string };
