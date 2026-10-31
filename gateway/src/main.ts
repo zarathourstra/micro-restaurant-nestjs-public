@@ -31,8 +31,21 @@ async function bootstrap() {
     changeOrigin: true,
   }));
 
+  const socketProxy = createProxyMiddleware({
+    target: `http://${dependenciesConfig.dining_service_url_with_port}`,
+    changeOrigin: true,
+    ws: true,
+    pathFilter: '/socket.io',
+  });
+  app.use(socketProxy);
+
   // Run the app
   const appPort = configService.get('app.port');
   await app.listen(appPort);
+  app.getHttpServer().on('upgrade', (req, socket, head) => {
+    if (req.url?.startsWith('/socket.io')) {
+      socketProxy.upgrade(req, socket as any, head);
+    }
+  });
 }
 bootstrap();

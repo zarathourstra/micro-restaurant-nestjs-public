@@ -45,6 +45,7 @@ export const groupRoom = (groupId: string): string => `group:${groupId}`;
 
 @WebSocketGateway({
   namespace: 'dining',
+  cors: { origin: true },
 })
 export class TableOrdersSocketGateway implements OnGatewayConnection {
   constructor(
