@@ -41,6 +41,17 @@ export interface GroupUpdatedData {
   members: GroupMember[];
 }
 
+export interface GiftItemData {
+  shortName: string;
+  howMany: number;
+  receiver: string;
+}
+
+export interface GiftReceivedData {
+  fromTableNumber: number;
+  items: GiftItemData[];
+}
+
 export const orderRoom = (tableOrderId: string): string => `order:${tableOrderId}`;
 export const groupRoom = (groupId: string): string => `group:${groupId}`;
 
@@ -50,6 +61,7 @@ export const groupRoom = (groupId: string): string => `group:${groupId}`;
 })
 export class TableOrdersSocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger('Groupe');
+  private readonly giftLogger = new Logger('Cadeau');
 
   constructor(
       private readonly diningSocketsService : DiningSocketsService,
@@ -113,6 +125,14 @@ export class TableOrdersSocketGateway implements OnGatewayConnection, OnGatewayD
     this.logger.log(`Émis table-group.updated -> ${groupRoom.slice(0, 14)} (${data.members.length} tables)`);
     this.server.to(groupRoom).emit(
       'table-group.updated',
+      data,
+    );
+  }
+
+  emitGiftReceived(receiverRoom: string, data: GiftReceivedData) {
+    this.giftLogger.log(`Émis table-gift.received -> ${receiverRoom} (${data.items.length} plat(s) de la table ${data.fromTableNumber})`);
+    this.server.to(receiverRoom).emit(
+      'table-gift.received',
       data,
     );
   }

@@ -260,6 +260,7 @@ export class TableOrdersService {
 
       if (destination !== tableNumber) {
         this.giftLogger.log(`Cuisine : ${lines.length} plat(s) offert(s) par la table ${tableNumber} envoyé(s) à la table ${destination}`);
+        await this.notifyGiftReceived(tableNumber, destination, lines);
       }
     }
 
@@ -275,6 +276,21 @@ export class TableOrdersService {
       orderingLines,
       preparations,
     };
+  }
+
+  // Receiver is only known by table number at this point (lines are grouped by destination
+  // table), so the room key (its tableOrderId) needs one lean lookup - same resolution assertReceiver
+  // already does when the gift is placed.
+  private async notifyGiftReceived(fromTableNumber: number, destinationTableNumber: number, lines: OrderingLine[]): Promise<void> {
+    const destinationOrder = await this.tableOrderModel.findOne({tableNumber: destinationTableNumber, billed: null}).select('_id').lean();
+    if (!destinationOrder) {
+      return;
+    }
+
+    this.tableOrdersSocketGateway.emitGiftReceived(orderRoom(destinationOrder._id.toString()), {
+      fromTableNumber,
+      items: lines.map((line) => ({shortName: line.item.shortName, howMany: line.howMany, receiver: line.receiver})),
+    });
   }
 
   async sendItemsForPreparation(tableOrderId: string): Promise<PreparationDto[]> {
