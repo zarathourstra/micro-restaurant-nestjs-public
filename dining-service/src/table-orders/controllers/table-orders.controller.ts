@@ -38,121 +38,164 @@ import { PreparationDto } from '../dto/preparation.dto';
 @ApiTags('tableOrders')
 @Controller('/tableOrders')
 export class TableOrdersController {
-  constructor(private readonly tableOrdersService: TableOrdersService) {}
+  constructor(private readonly tableOrdersService: TableOrdersService) {
+  }
 
-  @ApiOkResponse({ type: TableOrder, isArray: true })
-  @ApiQuery({ name: 'billed', required: false, type: Boolean, description: 'false: only open table orders, true: only billed ones, omitted: all' })
+  @ApiOkResponse({type: TableOrder, isArray: true})
+  @ApiQuery({
+    name: 'billed',
+    required: false,
+    type: Boolean,
+    description: 'false: only open table orders, true: only billed ones, omitted: all'
+  })
   @Get()
   async listAllTableOrders(@Query('billed') billed?: string): Promise<TableOrder[]> {
     return this.tableOrdersService.findAll(billed === undefined ? undefined : billed === 'true');
   }
 
-  @ApiBody({ type: StartOrderingDto })
-  @ApiCreatedResponse({ type: TableOrder, description: 'The table has been successfully opened.' })
-  @ApiNotFoundResponse({ type: TableNumberNotFoundException, description: 'Table not found' })
-  @ApiUnprocessableEntityResponse({ type: TableAlreadyTakenException, description: 'Table is already taken' })
+  @ApiBody({type: StartOrderingDto})
+  @ApiCreatedResponse({type: TableOrder, description: 'The table has been successfully opened.'})
+  @ApiNotFoundResponse({type: TableNumberNotFoundException, description: 'Table not found'})
+  @ApiUnprocessableEntityResponse({type: TableAlreadyTakenException, description: 'Table is already taken'})
   @Post()
   async openTable(@Body() startOrderingDto: StartOrderingDto): Promise<TableOrder> {
     return await this.tableOrdersService.startOrdering(startOrderingDto);
   }
 
-  @ApiParam({ name: 'groupId' })
-  @ApiOkResponse({ type: GroupMemberDto, isArray: true, description: 'Open tables of the group with their participants.' })
-  @ApiNotFoundResponse({ type: GroupNotFoundException, description: 'Group not found' })
+  @ApiParam({name: 'groupId'})
+  @ApiOkResponse({
+    type: GroupMemberDto,
+    isArray: true,
+    description: 'Open tables of the group with their participants.'
+  })
+  @ApiNotFoundResponse({type: GroupNotFoundException, description: 'Group not found'})
   @Get('groups/:groupId')
   async getGroupMembers(@Param() getGroupParams: GetGroupParams): Promise<GroupMemberDto[]> {
     return this.tableOrdersService.findGroupMembers(getGroupParams.groupId);
   }
 
-  @ApiParam({ name: 'tableOrderId' })
-  @ApiOkResponse({ type: TableOrder })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @ApiParam({name: 'tableOrderId'})
+  @ApiOkResponse({type: TableOrder})
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
   @Get(':tableOrderId')
   async getTableOrderById(@Param() getTableOrderParams: GetTableOrderParams): Promise<TableOrder> {
     return this.tableOrdersService.findOne(getTableOrderParams.tableOrderId);
   }
 
-  @ApiParam({ name: 'tableOrderId' })
-  @ApiBody({ type: AddMenuItemDto })
-  @ApiCreatedResponse({ type: TableOrder, description: 'The menu item has been successfully added to the table order.' })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
-  @ApiNotFoundResponse({ type: AddMenuItemDtoNotFoundException, description: 'Inconsistent AddMenuItemDto with the MenuServiceProxy' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already billed' })
+  @ApiParam({name: 'tableOrderId'})
+  @ApiBody({type: AddMenuItemDto})
+  @ApiCreatedResponse({type: TableOrder, description: 'The menu item has been successfully added to the table order.'})
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
+  @ApiNotFoundResponse({
+    type: AddMenuItemDtoNotFoundException,
+    description: 'Inconsistent AddMenuItemDto with the MenuServiceProxy'
+  })
+  @ApiUnprocessableEntityResponse({type: TableOrderAlreadyBilledException, description: 'TableOrder is already billed'})
   @Post(':tableOrderId')
   async addMenuItemToTableOrder(@Param() getTableOrderParams: GetTableOrderParams, @Body() addMenuItemDto: AddMenuItemDto): Promise<TableOrder> {
     return this.tableOrdersService.addOrderingLineToTableOrder(getTableOrderParams.tableOrderId, addMenuItemDto);
   }
 
-  @ApiParam({ name: 'tableOrderId' })
-  @ApiCreatedResponse({ type: PreparationDto, isArray: true, description: 'The menu items have been successfully sent for preparation.' })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already billed' })
+  @ApiParam({name: 'tableOrderId'})
+  @ApiCreatedResponse({
+    type: PreparationDto,
+    isArray: true,
+    description: 'The menu items have been successfully sent for preparation.'
+  })
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
+  @ApiUnprocessableEntityResponse({type: TableOrderAlreadyBilledException, description: 'TableOrder is already billed'})
   @Post(':tableOrderId/prepare')
   async prepareTableOrder(@Param() getTableOrderParams: GetTableOrderParams): Promise<PreparationDto[]> {
     return this.tableOrdersService.sendItemsForPreparation(getTableOrderParams.tableOrderId);
   }
 
-  @ApiParam({ name: 'tableOrderId' })
-  @ApiBody({ type: PayOrderingLinesDto })
-  @ApiOkResponse({ type: TableOrder, description: 'The selected ordering lines have been paid.' })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderLinesNotPayableException, description: 'One or more lines cannot be paid' })
+  @ApiParam({name: 'tableOrderId'})
+  @ApiBody({type: PayOrderingLinesDto})
+  @ApiOkResponse({type: TableOrder, description: 'The selected ordering lines have been paid.'})
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
+  @ApiUnprocessableEntityResponse({type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed'})
+  @ApiUnprocessableEntityResponse({
+    type: TableOrderLinesNotPayableException,
+    description: 'One or more lines cannot be paid'
+  })
   @HttpCode(200)
   @Post(':tableOrderId/payments')
   async payTableOrderLines(@Param() getTableOrderParams: GetTableOrderParams, @Body() payOrderingLinesDto: PayOrderingLinesDto,): Promise<TableOrder> {
     return this.tableOrdersService.payLines(getTableOrderParams.tableOrderId, payOrderingLinesDto);
   }
 
-  @ApiParam({ name: 'tableOrderId' })
-  @ApiOkResponse({ type: TableOrder, description: 'The table has been successfully closed.' })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderNotFullyPaidException, description: 'TableOrder still has unpaid lines' })
+  @ApiParam({name: 'tableOrderId'})
+  @ApiOkResponse({type: TableOrder, description: 'The table has been successfully closed.'})
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
+  @ApiUnprocessableEntityResponse({type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed'})
+  @ApiUnprocessableEntityResponse({
+    type: TableOrderNotFullyPaidException,
+    description: 'TableOrder still has unpaid lines'
+  })
   @HttpCode(200)
   @Post(':tableOrderId/close')
   async closeTableOrder(@Param() getTableOrderParams: GetTableOrderParams): Promise<TableOrder> {
     return this.tableOrdersService.closeOrder(getTableOrderParams.tableOrderId);
   }
 
-  @ApiParam({ name: 'tableOrderId' })
-  @ApiBody({ type: ApplyDiscountDto })
-  @ApiOkResponse({ type: TableOrder, description: 'The discount has been applied to the selected ordering lines.' })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderLineNotFoundException, description: 'A lineId does not match any line on the table order' })
+  @ApiParam({name: 'tableOrderId'})
+  @ApiBody({type: ApplyDiscountDto})
+  @ApiOkResponse({type: TableOrder, description: 'The discount has been applied to the selected ordering lines.'})
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
+  @ApiUnprocessableEntityResponse({type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed'})
+  @ApiUnprocessableEntityResponse({
+    type: TableOrderLineNotFoundException,
+    description: 'A lineId does not match any line on the table order'
+  })
   @HttpCode(200)
   @Post(':tableOrderId/discount')
   async applyDiscount(@Param() getTableOrderParams: GetTableOrderParams, @Body() applyDiscountDto: ApplyDiscountDto): Promise<TableOrder> {
     return this.tableOrdersService.applyDiscount(getTableOrderParams.tableOrderId, applyDiscountDto);
   }
 
-  @ApiParam({ name: 'tableOrderId' })
-  @ApiBody({ type: JoinRequestDto })
-  @ApiCreatedResponse({ description: 'A request to join the target table group has been sent to that table.', schema: { properties: { requestId: { type: 'string' }, expiresAt: { type: 'string', format: 'date-time' } } } })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
+  @ApiParam({name: 'tableOrderId'})
+  @ApiBody({type: JoinRequestDto})
+  @ApiCreatedResponse({
+    description: 'A request to join the target table group has been sent to that table.',
+    schema: {properties: {requestId: {type: 'string'}, expiresAt: {type: 'string', format: 'date-time'}}}
+  })
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
+  @ApiUnprocessableEntityResponse({type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed'})
   @HttpCode(200)
   @Post(':tableOrderId/join-requests')
-  async requestToJoinGroup(@Param() getTableOrderParams: GetTableOrderParams, @Body() joinRequestDto: JoinRequestDto): Promise<{ requestId: string; expiresAt: Date }> {
+  async requestToJoinGroup(@Param() getTableOrderParams: GetTableOrderParams, @Body() joinRequestDto: JoinRequestDto): Promise<{
+    requestId: string;
+    expiresAt: Date
+  }> {
     return this.tableOrdersService.requestToJoinGroup(getTableOrderParams.tableOrderId, joinRequestDto);
   }
 
-  @ApiParam({ name: 'tableOrderId' })
-  @ApiBody({ type: JoinRequestAnswerDto })
-  @ApiNoContentResponse({ description: 'The answer to the join request has been recorded and the requesting table notified.' })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
+  @ApiParam({name: 'tableOrderId'})
+  @ApiBody({type: JoinRequestAnswerDto})
+  @ApiNoContentResponse({description: 'The answer to the join request has been recorded and the requesting table notified.'})
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
   @HttpCode(204)
   @Post(':tableOrderId/join-requests/answer')
   async answerJoinRequest(@Param() getTableOrderParams: GetTableOrderParams, @Body() joinRequestAnswerDto: JoinRequestAnswerDto): Promise<void> {
     return this.tableOrdersService.answerJoinRequest(getTableOrderParams.tableOrderId, joinRequestAnswerDto);
-  @ApiBody({ type: ClaimBonusDto })
-  @ApiOkResponse({ type: TableOrder, description: 'The bonus minigame reward has been applied, if the score was high enough.' })
-  @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
-  @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
+  }
+
+  /*
+  @ApiBody({type: ClaimBonusDto})
+  @ApiOkResponse({
+    type: TableOrder,
+    description: 'The bonus minigame reward has been applied, if the score was high enough.'
+  })
+  @ApiNotFoundResponse({type: TableOrderIdNotFoundException, description: 'Table order not found'})
+  @ApiUnprocessableEntityResponse({type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed'})
   @HttpCode(200)
   @Post(':tableOrderId/bonus')
-  async claimBonus(@Param() getTableOrderParams: GetTableOrderParams, @Body() claimBonusDto: ClaimBonusDto): Promise<TableOrder> {
-    return this.tableOrdersService.claimBonus(getTableOrderParams.tableOrderId, claimBonusDto);
-  }
+  async
+    claimBonus(@Param()
+    getTableOrderParams: GetTableOrderParams, @Body()
+    claimBonusDto: ClaimBonusDto
+  ):
+    Promise < TableOrder > {
+      return this.tableOrdersService.claimBonus(getTableOrderParams.tableOrderId, claimBonusDto);
+    }*/
 }
