@@ -11,6 +11,7 @@ import { AddMenuItemDto } from '../dto/add-menu-item.dto';
 import { PayOrderingLinesDto } from '../dto/pay-ordering-lines.dto';
 import { ApplyDiscountDto } from '../dto/apply-discount.dto';
 import { ClaimBonusDto } from '../dto/claim-bonus.dto';
+import { AffectedTableOrderDto, ClaimBonusResultDto } from '../dto/claim-bonus-result.dto';
 import { PreparationDto } from '../dto/preparation.dto';
 import { GroupMemberDto } from '../dto/group-member.dto';
 import { GroupMember, GroupUpdatedData} from "../controllers/table-orders.socket.gateway";
@@ -35,6 +36,7 @@ import { TableOrderAlreadyBilledException } from '../exceptions/table-order-alre
 import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
 import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
 import { TableOrderLineNotFoundException } from '../exceptions/table-order-line-not-found.exception';
+import { TableOrderLineAlreadyDiscountedException } from '../exceptions/table-order-line-already-discounted.exception';
 import { GroupNotFoundException } from '../exceptions/group-not-found.exception';
 import {DiningSocketsService, PendingJoinRequest} from './dining-sockets.service';
 import {InvalidParticipantException} from "../exceptions/invalid-participant.exception";
@@ -88,13 +90,16 @@ export class TableOrdersService {
   private computeTotals(tableOrder: TableOrder): { subtotal: number; discountAmount: number; total: number } {
     const lines = tableOrder.lines ?? [];
     const subtotal = lines.reduce((sum, line) => sum + line.price * line.howMany, 0);
+    const linesById = new Map(lines.map((line) => [line._id?.toString(), line]));
 
-    const discountPercent = tableOrder.discountPercent ?? 0;
-    const discountLineIds = new Set(tableOrder.discountLineIds ?? []);
-    const discountBase = lines
-        .filter((line) => discountLineIds.has(line._id?.toString()))
-        .reduce((sum, line) => sum + line.price * line.howMany, 0);
-    const discountAmount = Math.round(discountBase * discountPercent) / 100;
+    // Grants never overlap (enforced in applyDiscount), so this is a plain sum, not a max/priority rule.
+    const discountAmount = (tableOrder.discounts ?? []).reduce((sum, grant) => {
+      const grantBase = grant.lineIds.reduce((base, lineId) => {
+        const line = linesById.get(lineId);
+        return line ? base + line.price * line.howMany : base;
+      }, 0);
+      return sum + Math.round(grantBase * grant.percent) / 100;
+    }, 0);
 
     return {
       subtotal,
@@ -319,10 +324,21 @@ export class TableOrdersService {
       throw new TableOrderLineNotFoundException(tableOrder, unknownLineId);
     }
 
-    tableOrder.discountPercent = applyDiscountDto.percent;
-    tableOrder.discountLineIds = applyDiscountDto.lineIds;
+    const alreadyDiscountedLineIds = new Set((tableOrder.discounts ?? []).flatMap((grant) => grant.lineIds));
+    const alreadyDiscountedLineId = applyDiscountDto.lineIds.find((lineId) => alreadyDiscountedLineIds.has(lineId));
+    if (alreadyDiscountedLineId) {
+      throw new TableOrderLineAlreadyDiscountedException(tableOrder, alreadyDiscountedLineId);
+    }
+
+    tableOrder.discounts = [...(tableOrder.discounts ?? []), { percent: applyDiscountDto.percent, lineIds: applyDiscountDto.lineIds }];
 
     return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, {returnDocument: 'after'}));
+  }
+
+  // Full TableOrder documents (lines included), unlike findGroupMembers' lightweight GroupMemberDto -
+  // this is the pool claimBonus selects across. Naturally degrades to a single-table list for a solo group.
+  private async findOpenTableOrdersInGroup(groupId: string): Promise<TableOrder[]> {
+    return this.tableOrderModel.find({ groupId, billed: null }).lean();
   }
 
   async findGroupMembers(groupId: string): Promise<GroupMemberDto[]> {
@@ -438,21 +454,52 @@ export class TableOrdersService {
   }
 
   // The backend owns the score -> reward mapping and picks which lines get discounted
-  // (cheapest-first) so a client can never dictate the percent or cherry-pick pricey lines.
-  async claimBonus(tableOrderId: string, claimBonusDto: ClaimBonusDto): Promise<TableOrder> {
+  // (cheapest-first, across every open table order sharing this one's groupId) so a client
+  // can never dictate the percent or cherry-pick pricey lines, on this table or anyone else's.
+  async claimBonus(tableOrderId: string, claimBonusDto: ClaimBonusDto): Promise<ClaimBonusResultDto> {
     const tableOrder: TableOrder = await this.findOne(tableOrderId);
 
     const tier = rewardForScore(claimBonusDto.score);
     if (tier === null) {
-      return tableOrder;
+      return { tier: null, affected: [] };
     }
 
-    const lineIds = (tableOrder.lines ?? [])
-      .filter((line) => !line.paid)
-      .sort((a, b) => a.price * a.howMany - b.price * b.howMany)
-      .slice(0, tier.lineCount)
-      .map((line) => line._id?.toString());
+    if (tableOrder.billed !== null) {
+      throw new TableOrderAlreadyBilledException(tableOrder);
+    }
 
-    return this.applyDiscount(tableOrderId, { percent: tier.discountPercent, lineIds });
+    const groupOrders = tableOrder.groupId
+        ? await this.findOpenTableOrdersInGroup(tableOrder.groupId)
+        : [tableOrder];
+
+    type PoolEntry = { tableOrderId: string; tableNumber: number; lineId: string; price: number };
+    const pool: PoolEntry[] = groupOrders.flatMap((order) => {
+      const alreadyDiscountedLineIds = new Set((order.discounts ?? []).flatMap((grant) => grant.lineIds));
+      return (order.lines ?? [])
+          .filter((line) => !line.paid && !alreadyDiscountedLineIds.has(line._id?.toString()))
+          .map((line) => ({
+            tableOrderId: order._id.toString(),
+            tableNumber: order.tableNumber,
+            lineId: line._id?.toString(),
+            price: line.price * line.howMany,
+          }));
+    });
+
+    const selected = pool.sort((a, b) => a.price - b.price).slice(0, tier.lineCount);
+
+    const selectedByOwner = new Map<string, { tableNumber: number; lineIds: string[] }>();
+    for (const entry of selected) {
+      const owner = selectedByOwner.get(entry.tableOrderId) ?? { tableNumber: entry.tableNumber, lineIds: [] };
+      owner.lineIds.push(entry.lineId);
+      selectedByOwner.set(entry.tableOrderId, owner);
+    }
+
+    const affected: AffectedTableOrderDto[] = [];
+    for (const [ownerId, owner] of selectedByOwner) {
+      await this.applyDiscount(ownerId, { percent: tier.discountPercent, lineIds: owner.lineIds });
+      affected.push({ tableOrderId: ownerId, tableNumber: owner.tableNumber, lineIds: owner.lineIds, percent: tier.discountPercent });
+    }
+
+    return { tier, affected };
   }
 }
