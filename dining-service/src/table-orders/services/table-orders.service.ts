@@ -51,9 +51,10 @@ import {JoinRequestNotFoundException} from "../exceptions/join-request-not-found
 
 @Injectable()
 export class TableOrdersService {
-  // Demo logs: one tag per feature so the two workflows can be followed in `docker logs`.
+  // Demo logs: one tag per feature so the workflows can be followed in `docker logs`.
   private readonly groupLogger = new Logger('Groupe');
   private readonly giftLogger = new Logger('Cadeau');
+  private readonly bonusLogger = new Logger('Bonus');
 
   constructor(
       @InjectModel(TableOrder.name) private tableOrderModel: Model<TableOrderDocument>,
@@ -356,6 +357,8 @@ export class TableOrdersService {
 
     tableOrder.discounts = [...(tableOrder.discounts ?? []), { percent: applyDiscountDto.percent, lineIds: applyDiscountDto.lineIds }];
 
+    this.bonusLogger.log(`Remise de ${applyDiscountDto.percent}% appliquée à ${applyDiscountDto.lineIds.length} ligne(s) de la table ${tableOrder.tableNumber}`);
+
     return this.finalizeTableOrder(await this.tableOrderModel.findByIdAndUpdate(tableOrder._id, tableOrder, {returnDocument: 'after'}));
   }
 
@@ -487,8 +490,11 @@ export class TableOrdersService {
   async claimBonus(tableOrderId: string, claimBonusDto: ClaimBonusDto): Promise<ClaimBonusResultDto> {
     const tableOrder: TableOrder = await this.findOne(tableOrderId);
 
+    this.bonusLogger.log(`Table ${tableOrder.tableNumber} réclame un bonus : score ${claimBonusDto.score}`);
+
     const tier = rewardForScore(claimBonusDto.score);
     if (tier === null) {
+      this.bonusLogger.log(`Score ${claimBonusDto.score} insuffisant pour la table ${tableOrder.tableNumber} : aucune récompense`);
       return { tier: null, affected: [] };
     }
 
@@ -499,6 +505,8 @@ export class TableOrdersService {
     const groupOrders = tableOrder.groupId
         ? await this.findOpenTableOrdersInGroup(tableOrder.groupId)
         : [tableOrder];
+
+    this.bonusLogger.log(`Palier atteint pour la table ${tableOrder.tableNumber} : ${tier.discountPercent}% sur ${tier.lineCount} ligne(s), pool de ${groupOrders.length} table(s) (groupe ${tableOrder.groupId ? tableOrder.groupId.slice(0, 8) : 'solo'})`);
 
     type PoolEntry = { tableOrderId: string; tableNumber: number; lineId: string; price: number };
     const pool: PoolEntry[] = groupOrders.flatMap((order) => {
@@ -527,6 +535,8 @@ export class TableOrdersService {
       await this.applyDiscount(ownerId, { percent: tier.discountPercent, lineIds: owner.lineIds });
       affected.push({ tableOrderId: ownerId, tableNumber: owner.tableNumber, lineIds: owner.lineIds, percent: tier.discountPercent });
     }
+
+    this.bonusLogger.log(`Bonus de la table ${tableOrder.tableNumber} (score ${claimBonusDto.score}) réparti sur : ${affected.length > 0 ? affected.map((a) => `table ${a.tableNumber} (${a.lineIds.length} ligne(s))`).join(', ') : 'aucune ligne éligible'}`);
 
     return { tier, affected };
   }
