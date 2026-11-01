@@ -1,4 +1,4 @@
-import {Injectable} from '@nestjs/common';
+import {Injectable, Logger} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -51,6 +51,10 @@ import {JoinRequestNotFoundException} from "../exceptions/join-request-not-found
 
 @Injectable()
 export class TableOrdersService {
+  // Demo logs: one tag per feature so the two workflows can be followed in `docker logs`.
+  private readonly groupLogger = new Logger('Groupe');
+  private readonly giftLogger = new Logger('Cadeau');
+
   constructor(
       @InjectModel(TableOrder.name) private tableOrderModel: Model<TableOrderDocument>,
       private readonly tablesService: TablesService,
@@ -131,6 +135,7 @@ export class TableOrdersService {
     }
 
     const wsContext = this.diningSocketsService.registerOriginOrder(created._id.toString(), groupId);
+    this.groupLogger.log(`Table ${table.number} ouverte -> groupe ${groupId.slice(0, 8)} (origine), clé socket émise`);
 
     // toObject(): a Mongoose document serializes schema paths only, which would drop wsContext and totals.
     const createdOrder = this.finalizeTableOrder(created.toObject() as TableOrder);
@@ -180,6 +185,8 @@ export class TableOrdersService {
             line.receiverTableNumber === receiverTableNumber,
     );
 
+    this.logGiftLine(tableOrder, addMenuItemDto);
+
     if (mergeableLineIndex !== -1) {
       tableOrder.lines[mergeableLineIndex].howMany += addMenuItemDto.howMany;
 
@@ -212,8 +219,21 @@ export class TableOrdersService {
             : null;
 
     if (!target || !target.participants.some((p) => p.name === receiver)) {
+      this.giftLogger.warn(`Offre refusée : ${receiver} (table ${receiverTableNumber}) n'est pas dans le groupe de la table ${tableOrder.tableNumber}`);
       throw new InvalidReceiverException(receiver);
     }
+  }
+
+  // Only gifts are logged (receiver is not the orderer, or sits at another table).
+  private logGiftLine(tableOrder: TableOrder, dto: AddMenuItemDto): void {
+    if (dto.receiver === dto.orderer && dto.receiverTableNumber === tableOrder.tableNumber) {
+      return;
+    }
+
+    this.giftLogger.log(
+      `Offre : ${dto.howMany}x ${dto.menuItemShortName} de ${dto.orderer} (table ${tableOrder.tableNumber}) ` +
+      `-> ${dto.receiver} (table ${dto.receiverTableNumber}), destinataire vérifié dans le groupe`,
+    );
   }
 
 
@@ -236,6 +256,10 @@ export class TableOrdersService {
     for (const [destination, lines] of linesByDestination) {
       const created = await this.kitchenProxyService.sendItemsToCook(destination, lines);
       preparations.push(...created);
+
+      if (destination !== tableNumber) {
+        this.giftLogger.log(`Cuisine : ${lines.length} plat(s) offert(s) par la table ${tableNumber} envoyé(s) à la table ${destination}`);
+      }
     }
 
     for (const lines of linesByDestination.values()) {
@@ -379,6 +403,7 @@ export class TableOrdersService {
     }
 
     const joinReq : PendingJoinRequest = this.diningSocketsService.createJoinRequest(target._id.toString(), requester._id.toString(), target.groupId);
+    this.groupLogger.log(`Demande ${joinReq.requestId.slice(0, 8)} : table ${requester.tableNumber} veut rejoindre le groupe de la table ${target.tableNumber} (valable 2 min)`);
     if(joinReq){
       this.tableOrdersSocketGateway.emitJoinRequested(orderRoom(target._id.toString()), {
         requestId: joinReq.requestId,
@@ -415,6 +440,7 @@ export class TableOrdersService {
       this.diningSocketsService.deleteJoinRequest(dto.requestId);
       this.diningSocketsService.moveOrderToGroup(requesterId, updatedRequester.groupId);
       this.tableOrdersSocketGateway.moveGroupRoom(requesterId, oldGroupId, updatedRequester.groupId);
+      this.groupLogger.log(`Demande ${dto.requestId.slice(0, 8)} acceptée par la table ${target.tableNumber} : table ${requester.tableNumber} passe du groupe ${oldGroupId.slice(0, 8)} au groupe ${target.groupId.slice(0, 8)}`);
       this.tableOrdersSocketGateway.emitJoinResult(orderRoom(requesterId), {
         requestId: dto.requestId,
         decision: 'accept',
@@ -438,12 +464,14 @@ export class TableOrdersService {
         participants : member.participants
       }));
 
+      this.groupLogger.log(`Groupe ${target.groupId.slice(0, 8)} : tables ${memberDto.map((member) => member.tableNumber).join(', ')}`);
       this.tableOrdersSocketGateway.emitGroupUpdated(groupRoom(target.groupId), {
         groupId: target.groupId,
         members: memberDto
       });
     }
     else {
+      this.groupLogger.log(`Demande ${dto.requestId.slice(0, 8)} refusée par la table ${target.tableNumber} (demandeur : table ${requester.tableNumber})`);
       this.diningSocketsService.deleteJoinRequest(dto.requestId);
       this.tableOrdersSocketGateway.emitJoinResult(orderRoom(requesterId), {
         requestId: dto.requestId,
