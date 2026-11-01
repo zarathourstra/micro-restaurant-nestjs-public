@@ -263,8 +263,12 @@ export class TableOrdersService {
       }
     }
 
+    const sentAt = new Date();
     for (const lines of linesByDestination.values()) {
-      lines.forEach((line) => (line.sentForPreparation = true));
+      lines.forEach((line) => {
+        line.sentForPreparation = true;
+        line.sentAt = sentAt;
+      });
     }
 
     return {

@@ -27,6 +27,11 @@ export class OrderingLine {
   @Prop({ default: false })
   sentForPreparation: boolean;
 
+  // Set when the line is sent to the kitchen; null before (and for lines sent before this field existed).
+  @ApiProperty({ required: false, nullable: true })
+  @Prop({ type: Date, default: null })
+  sentAt?: Date | null;
+
   @ApiProperty()
   @Prop({ required: true })
   orderer: string;
@@ -45,6 +50,7 @@ export class OrderingLine {
     this.howMany = 0;
     this.price = 0;
     this.sentForPreparation = false;
+    this.sentAt = null;
     this.orderer = null;
     this.receiver = null;
     this.receiverTableNumber = null;
