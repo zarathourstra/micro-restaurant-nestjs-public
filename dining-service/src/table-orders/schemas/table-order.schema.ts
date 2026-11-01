@@ -43,13 +43,12 @@ export class TableOrder {
   @Prop({ default: null })
   billed: Date;
 
-  @ApiProperty()
-  @Prop({ default: 0, min: 0, max: 100 })
-  discountPercent?: number;
-
+  // A line can only ever belong to one grant (enforced in TableOrdersService.applyDiscount) -
+  // independent wins (own table or elsewhere in the group) each get their own grant instead of
+  // overwriting a flat discountPercent/discountLineIds pair, so a later win can never erase an earlier one.
   @ApiProperty({ required: false, isArray: true })
-  @Prop({ type: [String], default: [] })
-  discountLineIds?: string[];
+  @Prop({ type: [{ percent: Number, lineIds: [String] }], default: [] })
+  discounts?: { percent: number; lineIds: string[] }[];
 
   @ApiProperty({ required: false, nullable: true })
   @Prop({ type: String, default: null, index: true })

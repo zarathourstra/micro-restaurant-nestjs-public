@@ -16,6 +16,7 @@ import { JoinRequestAnswerDto } from '../dto/join-request-answer.dto';
 
 import { GroupMemberDto } from '../dto/group-member.dto';
 import { ClaimBonusDto } from '../dto/claim-bonus.dto';
+import { ClaimBonusResultDto } from '../dto/claim-bonus-result.dto';
 
 import { GetTableOrderParams } from '../params/get-table-order.params';
 import { GetGroupParams } from '../params/get-group.params';
@@ -33,6 +34,7 @@ import { TableOrderAlreadyBilledException } from '../exceptions/table-order-alre
 import { TableOrderLinesNotPayableException } from '../exceptions/table-order-lines-not-payable.exception';
 import { TableOrderNotFullyPaidException } from '../exceptions/table-order-not-fully-paid.exception';
 import { TableOrderLineNotFoundException } from '../exceptions/table-order-line-not-found.exception';
+import { TableOrderLineAlreadyDiscountedException } from '../exceptions/table-order-line-already-discounted.exception';
 import { PreparationDto } from '../dto/preparation.dto';
 
 @ApiTags('tableOrders')
@@ -117,10 +119,11 @@ export class TableOrdersController {
 
   @ApiParam({ name: 'tableOrderId' })
   @ApiBody({ type: ApplyDiscountDto })
-  @ApiOkResponse({ type: TableOrder, description: 'The discount has been applied to the selected ordering lines.' })
+  @ApiOkResponse({ type: TableOrder, description: 'A new discount grant has been added for the selected ordering lines.' })
   @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
   @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
   @ApiUnprocessableEntityResponse({ type: TableOrderLineNotFoundException, description: 'A lineId does not match any line on the table order' })
+  @ApiUnprocessableEntityResponse({ type: TableOrderLineAlreadyDiscountedException, description: 'A lineId already belongs to an existing discount grant' })
   @HttpCode(200)
   @Post(':tableOrderId/discount')
   async applyDiscount(@Param() getTableOrderParams: GetTableOrderParams, @Body() applyDiscountDto: ApplyDiscountDto): Promise<TableOrder> {
@@ -146,13 +149,16 @@ export class TableOrdersController {
   @Post(':tableOrderId/join-requests/answer')
   async answerJoinRequest(@Param() getTableOrderParams: GetTableOrderParams, @Body() joinRequestAnswerDto: JoinRequestAnswerDto): Promise<void> {
     return this.tableOrdersService.answerJoinRequest(getTableOrderParams.tableOrderId, joinRequestAnswerDto);
+  }
+
+  @ApiParam({ name: 'tableOrderId' })
   @ApiBody({ type: ClaimBonusDto })
-  @ApiOkResponse({ type: TableOrder, description: 'The bonus minigame reward has been applied, if the score was high enough.' })
+  @ApiOkResponse({ type: ClaimBonusResultDto, description: 'The tier won (if any) and which table order(s) in the group got lines discounted.' })
   @ApiNotFoundResponse({ type: TableOrderIdNotFoundException, description: 'Table order not found' })
   @ApiUnprocessableEntityResponse({ type: TableOrderAlreadyBilledException, description: 'TableOrder is already closed' })
   @HttpCode(200)
   @Post(':tableOrderId/bonus')
-  async claimBonus(@Param() getTableOrderParams: GetTableOrderParams, @Body() claimBonusDto: ClaimBonusDto): Promise<TableOrder> {
+  async claimBonus(@Param() getTableOrderParams: GetTableOrderParams, @Body() claimBonusDto: ClaimBonusDto): Promise<ClaimBonusResultDto> {
     return this.tableOrdersService.claimBonus(getTableOrderParams.tableOrderId, claimBonusDto);
   }
 }
